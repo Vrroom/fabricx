@@ -1,67 +1,186 @@
 import mitsuba as mi 
 import math
 import drjit as dr
+from utils import *
 
-class TintedDielectricBSDF (mi.BSDF) : 
+def diffuse_lobe_sample (wi, sample1, sample2, *args, **kwargs) : 
+    wo  = mi.warp.square_to_cosine_hemisphere(sample2)
+    pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
+    return wo, pdf, True, mi.UInt32(+mi.BSDFFlags.DiffuseReflection), dict()
 
-    def __init__ (self, props) : 
-        super().__init__(props)
+def metal_lobe_sample (wi, sample1, sample2, anisotropic, roughness, *args, **kwargs) : 
+    aspect = dr.sqrt(1 - 0.9 * anisotropic)
+    alpha_x = dr.maximum(0.0001, roughness ** 2 / aspect)
+    alpha_y = dr.maximum(0.0001, roughness ** 2 * aspect)
 
-        self.eta = 1.33
-        if props.has_property('eta') : 
-            self.eta = props['eta']
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
 
-        self.tint = props['tint']
+    m, Dm = distr.sample(wi, sample2)
+    wo = mi.reflect(wi, m)
+    pdf = Dm / (4. * dr.dot(wo, m)) # change of variable jacobian
 
-        reflection_flags = mi.BSDFFlags.DeltaReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
-        transmission_flags = mi.BSDFFlags.DeltaTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+    Gm = distr.G(wi, wo, m)
 
-        self.m_components = [reflection_flags, transmission_flags] 
-        self.m_flags = reflection_flags | transmission_flags
+    active = dr.neq(pdf, 0.) & (mi.Frame3f.cos_theta(wo) > 0.)
+    return wo, pdf, active, mi.UInt32(+mi.BSDFFlags.GlossyReflection), dict()
 
-    def sample (self, ctx, si, sample1, sample2, active) : 
-        cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-        r_i, cos_theta_t, eta_it, eta_ti = mi.fresnel(cos_theta_i, self.eta) 
-        t_i = dr.maximum(1.0 - r_i, 0.0)
+def glass_lobe_sample (wi, sample1, sample2, anisotropic, roughness, eta, cos_theta_i, *args, **kwargs) : 
+    aspect = dr.sqrt(1 - 0.9 * anisotropic)
+    alpha_x = dr.maximum(0.0001, roughness ** 2 / aspect)
+    alpha_y = dr.maximum(0.0001, roughness ** 2 * aspect)
 
-        selected_r = (sample1 <= r_i) & active 
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
 
-        bs = mi.BSDFSample3f() 
-        bs.pdf = dr.select(selected_r, r_i, t_i)
-        bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1)) 
+    m, Dg = distr.sample(dr.mulsign(wi, cos_theta_i), sample2)
+    active = dr.neq(Dg, 0.)
 
-        bs.sampled_type = dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.DeltaReflection), mi.UInt32(+mi.BSDFFlags.DeltaTransmission))
-        bs.wo = dr.select(selected_r,
-                          mi.reflect(si.wi),
-                          mi.refract(si.wi, cos_theta_t, eta_ti))
-        bs.eta = dr.select(selected_r, 1.0, eta_it)
+    Fg, cos_theta_t, eta_it, eta_ti = mi.fresnel(dr.dot(wi, m), eta)
 
-        # value_r = dr.lerp(mi.Color3f(self.tint), mi.Color3f(1.0), dr.clamp(cos_theta_i, 0.0, 1.0))
-        value_t = mi.Color3f(1.0) * dr.sqr(eta_ti)
-        # value = dr.select(selected_r, value_r, value_t)
-        value = dr.select(selected_r, value_t, value_t)
-        return (bs, value)
+    selected_r = (sample1 <= Fg) & active
 
-    def eval(self, ctx, si, wo, active):
-        return 0.0
+    pdf = Dg * dr.select(selected_r, Fg, 1. - Fg)
 
-    def pdf(self, ctx, si, wo, active):
-        return 0.0
+    wo = dr.select(selected_r, mi.reflect(wi, m), mi.refract(wi, m, cos_theta_t, eta_ti))
+    dwh_dwo = dr.select(selected_r, 
+        1. / (4. * dr.dot(wo, m)),
+        (dr.sqr(eta_it) * dr.dot(wo, m)) / dr.sqr(dr.dot(wi, m) + eta_it * dr.dot(wo, m))
+    )
+    pdf *= dr.abs(dwh_dwo) # change of variable jacobian accounting for both possibilities
 
-    def eval_pdf(self, ctx, si, wo, active):
-        return 0.0, 0.0
+    sampled_type = dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission))
+    Gg = distr.G(wi, wo, m)
 
-    def traverse(self, callback):
-        callback.put_parameter('tint', self.tint, mi.ParamFlags.Differentiable)
+    return wo, pdf, active, sampled_type, dict(Dg=Dg, Gg=Gg, Fg=Fg, selected_r=selected_r, eta_it=eta_it, h=m, dwh_dwo=dwh_dwo)
 
-    def parameters_changed(self, keys):
-        print("🏝️ there is nothing to do here 🏝️")
+def clearcoat_lobe_sample(wi, sample1, sample2, clearcoat_gloss) : 
+    alpha_g = (1. - clearcoat_gloss) * 0.1 + clearcoat_gloss * 0.001
+    alpha_g_sq = alpha_g ** 2
 
-    def to_string(self):
-        return ('TintedDielectricBSDF[\n'
-                '    eta=%s,\n'
-                '    tint=%s,\n'
-                ']' % (self.eta, self.tint))
+    cos_h_el = dr.sqrt((1. - dr.power(alpha_g_sq, 1 - sample2[0])) / (1 - alpha_g_sq))
+    sin_h_el = dr.sqrt(1.0 - cos_h_el ** 2)
+
+    h_az = 2 * math.pi * sample2[1]
+
+    hx = sin_h_el * dr.cos(h_az)
+    hy = sin_h_el * dr.sin(h_az)
+    hz = cos_h_el
+
+    h = mi.Vector3f(hx, hy, hz) 
+
+    wo = mi.reflect(wi, h) 
+    
+    Dc = (alpha_g_sq - 1.) / (dr.pi * dr.log(alpha_g_sq) * (1. + (alpha_g_sq - 1) * (hz ** 2))) 
+
+    pdf = Dc / (4. * dr.dot(wo, h))
+    sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
+
+    active = dr.neq(pdf, 0.) 
+
+    return wo, pdf, active, sampled_type, dict() 
+
+def diffuse_bsdf (wi, wo, cos_theta_i, cos_theta_o, roughness, base_color, subsurface) : 
+    """ evaluate bsdf * forshortening factor (|n.wo|) """ 
+    h = half_vec(wi, wo)
+
+    Fd90    = 0.5 + 2. * roughness * (dr.dot(h, wo) ** 2)
+
+    Fd_wi   = (1 + (Fd90 - 1) * ((1 - dr.abs(cos_theta_i)) ** 5))
+    Fd_wo   = (1 + (Fd90 - 1) * ((1 - dr.abs(cos_theta_o)) ** 5))
+
+    f_base_diffuse = (mi.Color3f(base_color) / dr.pi) * Fd_wi * Fd_wo * dr.abs(cos_theta_o)
+
+    FSS90 = roughness * (dr.dot(h, wo) ** 2)
+    FSS_wi = (1. + (FSS90 - 1.) * (1 - dr.abs(cos_theta_i)) ** 5)
+    FSS_wo = (1. + (FSS90 - 1.) * (1 - dr.abs(cos_theta_o)) ** 5)
+
+    rcp = (1. / (dr.abs(cos_theta_i) + dr.abs(cos_theta_o))) - 0.5
+    f_subsurface = ((1.25 * mi.Color3f(base_color)) / dr.pi) \
+            * (FSS_wi * FSS_wo * rcp + 0.5) \
+            * dr.abs(cos_theta_o)
+
+    f_diffuse = ((1 - subsurface) * f_base_diffuse + subsurface * f_subsurface) 
+    return f_diffuse
+
+def metal_bsdf(wi, wo, cos_theta_i, cos_theta_o, base_color, anisotropic, roughness) :
+    aspect = dr.sqrt(1 - 0.9 * anisotropic)
+    alpha_x = dr.maximum(0.0001, roughness ** 2 / aspect)
+    alpha_y = dr.maximum(0.0001, roughness ** 2 * aspect)
+
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
+    h = half_vec(wi, wo)
+    Dm = distr.pdf(wi, h)
+    Gm = distr.G(wi, wo, h)
+    Fm = mi.Color3f(base_color) + (1.0 - mi.Color3f(base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
+    return (Fm * Dm * Gm) / (4. * dr.abs(cos_theta_i))
+
+def modified_metal_bsdf (wi, wo, cos_theta_i, cos_theta_o, base_color, anisotropic, roughness, specular_tint, specular, metallic) :
+    aspect = dr.sqrt(1 - 0.9 * anisotropic)
+    alpha_x = dr.maximum(0.0001, roughness ** 2 / aspect)
+    alpha_y = dr.maximum(0.0001, roughness ** 2 * aspect)
+
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
+
+    h = half_vec(wi, wo)
+
+    Dm = distr.pdf(wi, h)
+    Gm = distr.G(wi, wo, h)
+
+    base_color = mi.Color3f(base_color)
+    white_color = mi.Color3f([1., 1., 1.])
+
+    lum = mi.luminance(base_color)
+
+    C_tint = dr.select(lum > 0, base_color / lum, white_color)
+    Ks = (1 - specular_tint) + specular_tint * C_tint
+    R0 = (1.5 - 1) ** 2 / (1.5 + 1) ** 2
+    C0 = specular * R0 * (1 - metallic) * Ks + metallic * base_color
+
+    Fm = C0 + (1 - C0) * (1 - dr.abs(dr.dot(h, wo))) ** 5 
+
+    f_metal = Fm * Dm * Gm / (4. * dr.abs(cos_theta_i))
+
+    return f_metal
+
+def glass_bsdf (wi, wo, cos_theta_i, cos_theta_o, base_color, anisotropic, roughness, eta, selected_r, h) : 
+    aspect = dr.sqrt(1 - 0.9 * anisotropic)
+    alpha_x = dr.maximum(0.0001, roughness ** 2 / aspect)
+    alpha_y = dr.maximum(0.0001, roughness ** 2 * aspect)
+
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
+    Dg = distr.pdf(dr.mulsign(wi, cos_theta_i), h)
+    Gg = distr.G(wi, wo, h)
+    Fg, _, eta_it, eta_ti = mi.fresnel(dr.dot(wi, h), eta)
+
+    f_glass_r = (mi.Color3f(base_color) * Fg * Dg * Gg) / (4 * dr.abs(cos_theta_i))
+    f_glass_t = (dr.sqrt(mi.Color3f(base_color)) * (1 - Fg) * Dg * Gg * dr.abs(dr.dot(h, wo) * dr.dot(h, wi))) \
+            / (dr.abs(cos_theta_i) * (dr.dot(h, wi) + eta_it * dr.dot(h, wo)) ** 2)
+    return dr.select(selected_r, f_glass_r, f_glass_t)
+
+def clearcoat_bsdf (wi, wo, cos_theta_i, cos_theta_o, clearcoat_gloss) : 
+    alpha_g = (1. - clearcoat_gloss) * 0.1 + clearcoat_gloss * 0.001
+    alpha_g_sq = alpha_g ** 2
+    h = half_vec(wi, wo)
+    R0 = (1.5 - 1) ** 2 / (1.5 + 1) ** 2
+    Fc = R0 + (1 - R0) * (1. - dr.abs(dr.dot(h, wo))) ** 5
+    Dc = (alpha_g_sq - 1.) / (dr.pi * dr.log(alpha_g_sq) * (1. + (alpha_g_sq - 1) * (h.z ** 2))) 
+    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, 0.25, 0.25)
+    Gc = distr.G(wi, wo, h)
+    f_clearcoat = Fc * Dc * Gc / (4 * dr.abs(cos_theta_i)) 
+    return f_clearcoat
+
+def sheen_bsdf (wi, wo, cos_theta_i, cos_theta_o, base_color, sheen_tint) : 
+    base_color = mi.Color3f(base_color)
+    white_color = mi.Color3f([1., 1., 1.])
+
+    lum = mi.luminance(base_color)
+
+    C_tint = dr.select(lum > 0, base_color / lum, white_color)
+    C_sheen = (1 - sheen_tint) + sheen_tint * C_tint
+
+    h = half_vec(wi, wo) 
+    f_sheen = C_sheen * ((1 - dr.abs(dr.dot(h, wo))) ** 5) * dr.abs(wo)
+    return f_sheen
+
 
 class DisneyDiffuseBSDF (mi.BSDF) : 
 
@@ -80,42 +199,24 @@ class DisneyDiffuseBSDF (mi.BSDF) :
     def sample (self, ctx, si, sample1, sample2, active) : 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
 
-        wo  = mi.warp.square_to_cosine_hemisphere(sample2)
-        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
+        wo, pdf, act, sampled_type, misc = diffuse_lobe_sample(si.wi, sample1, sample2)
+        active = active & act
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
+        
+        f_diffuse = diffuse_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.roughness, self.base_color, self.subsurface)
 
-        h  = (si.wi + wo) / dr.norm(si.wi + wo)
+        weight = f_diffuse / pdf
 
-        Fd90    = 0.5 + 2. * self.roughness * (dr.dot(h, wo) ** 2)
-
-        Fd_wi   = (1 + (Fd90 - 1) * (1 - dr.abs(mi.Frame3f.cos_theta(si.wi))) ** 5)
-        Fd_wo   = (1 + (Fd90 - 1) * (1 - dr.abs(mi.Frame3f.cos_theta(wo))) ** 5)
+        active = active & (cos_theta_i > 0.) & (cos_theta_o > 0.)
 
         bs = mi.BSDFSample3f() 
         bs.pdf = pdf
         bs.sampled_component = mi.UInt32(0) 
-
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.DiffuseReflection)
+        bs.sampled_type = sampled_type
         bs.wo = wo
         bs.eta = 1.0 
 
-        n_dot_wi = dr.maximum(0., mi.Frame3f.cos_theta(si.wi))
-        n_dot_wo = dr.maximum(0., mi.Frame3f.cos_theta(wo))
-
-        f_base_diffuse = (mi.Color3f(self.base_color) / math.pi) * Fd_wi * Fd_wo * n_dot_wo
-
-        FSS90 = self.roughness * (dr.dot(h, wo) ** 2)
-        FSS_wi = (1. + (FSS90 - 1.) * (1 - n_dot_wi) ** 5)
-        FSS_wo = (1. + (FSS90 - 1.) * (1 - n_dot_wo) ** 5)
-
-        f_subsurface = ((1.25 * mi.Color3f(self.base_color)) / math.pi) \
-                * (FSS_wi * FSS_wo * ((1 / (n_dot_wi + n_dot_wo)) - 0.5) + 0.5) \
-                * n_dot_wo
-
-        active = active & dr.neq(n_dot_wi + n_dot_wo, 0.)
-
-        value = ((1 - self.subsurface) * f_base_diffuse + self.subsurface * f_subsurface) / pdf
-
-        return (bs, value & active)
+        return (bs, weight & active)
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -151,36 +252,24 @@ class DisneyMetalBSDF (mi.BSDF) :
 
     def sample (self, ctx, si, sample1, sample2, active) : 
         # based on the rough conductor bsdf in mitsuba.cpp
-
-        bs = mi.BSDFSample3f() 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
 
-        active = active & (cos_theta_i > 0.)
+        wo, pdf, act, sampled_type, misc = metal_lobe_sample(si.wi, sample1, sample2, self.anisotropic, self.roughness)
+        active = active & act
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
+        
+        f_metal = metal_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.anisotropic, self.roughness)
 
-        aspect = dr.sqrt(1 - 0.9 * self.anisotropic)
-        alpha_x = dr.maximum(0.0001, self.roughness**2 / aspect)
-        alpha_y = dr.maximum(0.0001, self.roughness**2 * aspect)
+        weight = f_metal / pdf
 
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
+        bs = mi.BSDFSample3f() 
+        bs.pdf = pdf
+        bs.sampled_component = mi.UInt32(0) 
+        bs.sampled_type = sampled_type
+        bs.wo = wo
+        bs.eta = 1.0 
 
-        m, bs.pdf = distr.sample(si.wi, sample2)
-
-        bs.wo = mi.reflect(si.wi, m)
-        bs.eta = 1.
-        bs.sampled_component = 0
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-
-        active = active & dr.neq(bs.pdf, 0.) & (mi.Frame3f.cos_theta(bs.wo) > 0. )
-
-        Gm = distr.G(si.wi, bs.wo, m)
-
-        Fm = mi.Color3f(self.base_color) + (1 - mi.Color3f(self.base_color)) * (1 - dr.abs(dr.dot(m, bs.wo))) ** 5 
-
-        weight = Gm * dr.dot(bs.wo, m) / cos_theta_i
-
-        bs.pdf /= 4. * dr.dot(bs.wo, m)
-
-        weight *= Fm
+        active = active & (cos_theta_i > 0.) & (cos_theta_o > 0.)
 
         return (bs, (weight) & active)
 
@@ -219,49 +308,26 @@ class DisneyGlassBSDF (mi.BSDF) :
         self.m_flags = reflection_flags | transmission_flags
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        bs = mi.BSDFSample3f() 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
         active = active & dr.neq(cos_theta_i, 0.) # now since we are transmitting, a ray can hit from inside
-
-        aspect = dr.sqrt(1 - 0.9 * self.anisotropic)
-        alpha_x = dr.maximum(0.0001, self.roughness**2 / aspect)
-        alpha_y = dr.maximum(0.0001, self.roughness**2 * aspect)
-
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
-
-        m, bs.pdf = distr.sample(dr.mulsign(si.wi, cos_theta_i), sample2)
-        active &= dr.neq(bs.pdf, 0.)
-
-        F, cos_theta_t, eta_it, eta_ti = mi.fresnel(dr.dot(si.wi, m), self.eta)
-
-        selected_r = (sample1 <= F) & active
-
-        weight = 1.
-        bs.pdf *= dr.select(selected_r, F, 1. - F)
-
-        # selected_t = ~selected_r & active
-        bs.eta = dr.select(selected_r, 1., eta_it);
-        bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1)) 
-        bs.sampled_type = dr.select(selected_r, 
-            mi.UInt32(+mi.BSDFFlags.GlossyReflection), 
-            mi.UInt32(+mi.BSDFFlags.GlossyTransmission)
-        )
-
-        dwh_dwo = 0.
-
-        bs.wo = dr.select(selected_r, mi.reflect(si.wi, m), mi.refract(si.wi, m, cos_theta_t, eta_ti))
-        dwh_dwo = dr.select(selected_r, 
-            1. / (4. * dr.dot(bs.wo, m)),
-            (dr.sqr(bs.eta) * dr.dot(bs.wo, m)) / dr.sqr(dr.dot(si.wi, m) + bs.eta * dr.dot(bs.wo, m))
-        )
-        base_color = mi.Color3f(self.base_color)
-
-        actual_color = dr.select(selected_r, base_color, dr.sqrt(base_color))
-
-        weight *= actual_color * distr.G(si.wi, bs.wo, m) * dr.dot(si.wi, m) / (cos_theta_i) 
-        weight *= dr.select(selected_r, 1., 1. / dr.sqr(bs.eta))
-        bs.pdf *= dr.abs(dwh_dwo)
-        return (bs, weight & active)
+ 
+        wo, pdf, act, sampled_type, misc = glass_lobe_sample(si.wi, sample1, sample2, self.anisotropic, self.roughness, self.eta, cos_theta_i)
+        active = active & act
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
+        f_glass = glass_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.anisotropic, self.roughness, self.eta, misc['selected_r'], misc['h'])
+ 
+        weight = f_glass / pdf
+ 
+        selected_r = misc['selected_r']
+ 
+        bs = mi.BSDFSample3f() 
+        bs.pdf = pdf
+        bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
+        bs.sampled_type = sampled_type
+        bs.wo = wo
+        bs.eta = dr.select(selected_r, 1.0, misc['eta_it'])
+ 
+        return (bs, (weight) & active)
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -298,43 +364,19 @@ class DisneyClearcoatBSDF (mi.BSDF) :
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
         active = active & (cos_theta_i > 0.)
 
-        alpha_g = (1. - self.clearcoat_gloss) * 0.1 + self.clearcoat_gloss * 0.001
-        alpha_g_sq = alpha_g ** 2
-
-        cos_h_el = dr.sqrt((1. - dr.power(alpha_g_sq, 1 - sample2[0])) / (1 - alpha_g_sq))
-        sin_h_el = dr.sqrt(1.0 - cos_h_el ** 2)
-
-        h_az = 2 * math.pi * sample2[1]
-
-        hx = sin_h_el * dr.cos(h_az)
-        hy = sin_h_el * dr.sin(h_az)
-        hz = cos_h_el
-
-        h = mi.Vector3f(hx, hy, hz) 
-
-        wo = mi.reflect(si.wi, h) 
-        
-        R0 = (1.5 - 1) ** 2 / (1.5 + 1) ** 2
-
-        Fc = R0 + (1 - R0) * (1. - dr.abs(dr.dot(h, wo))) ** 5
-
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, 0.25, 0.25)
-
-        Gc = distr.G(si.wi, wo, h)
-
-        Dc = (alpha_g_sq - 1.) / (math.pi * dr.log(alpha_g_sq) * (1. + (alpha_g_sq - 1) * (hz ** 2))) 
+        wo, pdf, active, sampled_type, misc = clearcoat_lobe_sample(si.wi, sample1, sample2, self.clearcoat_gloss)
 
         bs.wo = wo
         bs.eta = 1.
-        bs.pdf = Dc / (4. * dr.dot(bs.wo, h))
+        bs.pdf = pdf
         bs.sampled_component = 0
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
+        bs.sampled_type = sampled_type
 
         active = active & dr.neq(bs.pdf, 0.) & (mi.Frame3f.cos_theta(bs.wo) > 0. )
 
-        f_clearcoat = Fc * Dc * Gc / (4 * dr.abs(cos_theta_i)) 
-
-        weight = f_clearcoat / bs.pdf
+        cos_theta_o = mi.Frame3f.cos_theta(wo) 
+        f_clearcoat = clearcoat_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.clearcoat_gloss)
+        weight = f_clearcoat / pdf
 
         return (bs, (weight) & active)
 
@@ -370,34 +412,20 @@ class DisneySheenBSDF (mi.BSDF) :
         self.m_flags = reflection_flags 
 
     def sample (self, ctx, si, sample1, sample2, active) : 
+        wo, pdf, act, sampled_type, misc = diffuse_lobe_sample (si.wi, sample1, sample2)
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-        bs = mi.BSDFSample3f() 
-
-        wo  = mi.warp.square_to_cosine_hemisphere(sample2)
         cos_theta_o = mi.Frame3f.cos_theta(wo) 
-        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
 
-        base_color = mi.Color3f(self.base_color)
-        white_color = mi.Color3f([1., 1., 1.])
+        active = active & (cos_theta_i > 0.) & act & (cos_theta_o > 0.) 
 
-        lum = mi.luminance(base_color)
+        f_sheen = sheen_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.sheen_tint)
 
-        C_tint = dr.select(lum > 0, base_color / lum, white_color)
-        C_sheen = (1 - self.sheen_tint) + self.sheen_tint * C_tint
-
-        h  = (si.wi + wo) / dr.norm(si.wi + wo)
-
-        f_sheen = C_sheen * ((1 - dr.abs(dr.dot(h, wo))) ** 5) * dr.abs(wo)
-
-        active = active & (cos_theta_i > 0.)
-
+        bs = mi.BSDFSample3f() 
         bs.wo = wo
         bs.eta = 1.
         bs.pdf = pdf
         bs.sampled_component = 0
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-
-        active = active & dr.neq(bs.pdf, 0.) & (cos_theta_o > 0. )
+        bs.sampled_type = sampled_type
 
         weight = f_sheen / bs.pdf
 
@@ -446,315 +474,108 @@ class DisneyPrincipledBSDF (mi.BSDF) :
         self.glassWeight = (1 - self.metallic) * self.specular_transmission
         self.clearcoatWeight = 0.25 * self.clearcoat
 
-        print(self.diffuseWeight, self.sheenWeight, self.metalWeight)
-        self.total = sum([self.diffuseWeight, self.sheenWeight, self.metalWeight]) #, self.glassWeight, self.clearcoatWeight]) 
+        total = sum([self.glassWeight, self.diffuseWeight, self.metalWeight, self.clearcoatWeight])
 
-        self.diffuseProb = self.diffuseWeight / self.total
-        self.sheenProb = self.sheenWeight / self.total
-        self.metalProb = self.metalWeight / self.total
-        # self.glassProb = self.glassWeight / self.total
-        # self.clearcoatProb = self.clearcoatWeight / self.total
+        self.glassProb = self.glassWeight / total
+        self.diffuseProb = self.diffuseWeight / total
+        self.metalProb = self.metalWeight / total
+        self.clearcoatProb = self.clearcoatWeight / total
 
         diffuse_reflection_flags = mi.BSDFFlags.DiffuseReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         glossy_reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        glossy_transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
 
-        self.m_components = [diffuse_reflection_flags, glossy_reflection_flags] 
-        self.m_flags = diffuse_reflection_flags | glossy_reflection_flags
-
-
-    def f_sheen (self, si, sample1, sample2, active) : 
-        cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-        bs = mi.BSDFSample3f() 
-
-        wo  = mi.warp.square_to_cosine_hemisphere(sample2)
-        cos_theta_o = mi.Frame3f.cos_theta(wo) 
-        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
-
-        base_color = mi.Color3f(self.base_color)
-        white_color = mi.Color3f([1., 1., 1.])
-
-        lum = mi.luminance(base_color)
-
-        C_tint = dr.select(lum > 0, base_color / lum, white_color)
-        C_sheen = (1 - self.sheen_tint) + self.sheen_tint * C_tint
-
-        h  = (si.wi + wo) / dr.norm(si.wi + wo)
-
-        f_sheen = C_sheen * ((1 - dr.abs(dr.dot(h, wo))) ** 5) * dr.abs(wo)
-
-        is_active = active & (cos_theta_i > 0.)
-
-        bs.wo = wo
-        bs.eta = 1.
-        bs.pdf = pdf
-        bs.sampled_component = 0
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-
-        is_active = is_active & dr.neq(bs.pdf, 0.) & (cos_theta_o > 0. )
-
-        weight = f_sheen / bs.pdf
-
-        return (f_sheen, bs.pdf, is_active, bs.wo, h)
-
-    #def f_clearcoat (self, si, sample1, sample2, active) : 
-    #    bs = mi.BSDFSample3f() 
-    #    cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-    #    is_active = active & (cos_theta_i > 0.)
-
-    #    alpha_g = (1. - self.clearcoat_gloss) * 0.1 + self.clearcoat_gloss * 0.001
-    #    alpha_g_sq = alpha_g ** 2
-
-    #    cos_h_el = dr.sqrt((1. - dr.power(alpha_g_sq, 1 - sample2[0])) / (1 - alpha_g_sq))
-    #    sin_h_el = dr.sqrt(1.0 - cos_h_el ** 2)
-
-    #    h_az = 2 * math.pi * sample2[1]
-
-    #    hx = sin_h_el * dr.cos(h_az)
-    #    hy = sin_h_el * dr.sin(h_az)
-    #    hz = cos_h_el
-
-    #    h = mi.Vector3f(hx, hy, hz) 
-
-    #    wo = mi.reflect(si.wi, h) 
-    #    
-    #    R0 = (1.5 - 1) ** 2 / (1.5 + 1) ** 2
-
-    #    Fc = R0 + (1 - R0) * (1. - dr.abs(dr.dot(h, wo))) ** 5
-
-    #    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, 0.25, 0.25)
-
-    #    Gc = distr.G(si.wi, wo, h)
-
-    #    Dc = (alpha_g_sq - 1.) / (math.pi * dr.log(alpha_g_sq) * (1. + (alpha_g_sq - 1) * (hz ** 2))) 
-
-    #    bs.wo = wo
-    #    bs.eta = 1.
-    #    bs.pdf = Dc / (4. * dr.dot(bs.wo, h))
-    #    bs.sampled_component = 0
-    #    bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-
-    #    is_active = is_active & dr.neq(bs.pdf, 0.) & (mi.Frame3f.cos_theta(bs.wo) > 0. )
-
-    #    f_clearcoat = Fc * Dc * Gc / (4 * dr.abs(cos_theta_i)) 
-
-    #    return (bs, f_clearcoat, bs.pdf, is_active)
-
-    #def f_glass (self, si, sample1, sample2, active) : 
-    #    bs = mi.BSDFSample3f() 
-    #    cos_theta_i = mi.Frame3f.cos_theta(si.wi)
-    #    is_active = active & dr.neq(cos_theta_i, 0.) # now since we are transmitting, a ray can hit from inside
-
-    #    aspect = dr.sqrt(1 - 0.9 * self.anisotropic)
-    #    alpha_x = dr.maximum(0.0001, self.roughness**2 / aspect)
-    #    alpha_y = dr.maximum(0.0001, self.roughness**2 * aspect)
-
-    #    distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
-
-    #    m, bs.pdf = distr.sample(dr.mulsign(si.wi, cos_theta_i), sample2)
-    #    is_active = is_active & dr.neq(bs.pdf, 0.)
-
-    #    F, cos_theta_t, eta_it, eta_ti = mi.fresnel(dr.dot(si.wi, m), self.eta)
-
-    #    selected_r = (sample1 <= F) & is_active
-
-    #    weight = 1.
-    #    bs.pdf *= dr.select(selected_r, F, 1. - F)
-
-    #    bs.eta = dr.select(selected_r, 1., eta_it);
-    #    bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1)) 
-    #    bs.sampled_type = dr.select(selected_r, 
-    #        mi.UInt32(+mi.BSDFFlags.GlossyReflection), 
-    #        mi.UInt32(+mi.BSDFFlags.GlossyTransmission)
-    #    )
-
-    #    dwh_dwo = 0.
-
-    #    bs.wo = dr.select(selected_r, mi.reflect(si.wi, m), mi.refract(si.wi, m, cos_theta_t, eta_ti))
-    #    dwh_dwo = dr.select(selected_r, 
-    #        1. / (4. * dr.dot(bs.wo, m)),
-    #        (dr.sqr(bs.eta) * dr.dot(bs.wo, m)) / dr.sqr(dr.dot(si.wi, m) + bs.eta * dr.dot(bs.wo, m))
-    #    )
-    #    base_color = mi.Color3f(self.base_color)
-
-    #    actual_color = dr.select(selected_r, base_color, dr.sqrt(base_color))
-
-    #    weight *= actual_color * distr.G(si.wi, bs.wo, m) * dr.dot(si.wi, m) / (cos_theta_i) 
-    #    weight *= dr.select(selected_r, 1., 1. / dr.sqr(bs.eta))
-    #    bs.pdf *= dr.abs(dwh_dwo)
-    #    return (bs, weight * bs.pdf, bs.pdf, is_active)
-
-    def f_diffuse (self, si, sample1, sample2, active) : 
-        cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-
-        wo  = mi.warp.square_to_cosine_hemisphere(sample2)
-        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
-
-        h  = (si.wi + wo) / dr.norm(si.wi + wo)
-
-        Fd90    = 0.5 + 2. * self.roughness * (dr.dot(h, wo) ** 2)
-
-        Fd_wi   = (1 + (Fd90 - 1) * (1 - dr.abs(mi.Frame3f.cos_theta(si.wi))) ** 5)
-        Fd_wo   = (1 + (Fd90 - 1) * (1 - dr.abs(mi.Frame3f.cos_theta(wo))) ** 5)
-
-        bs = mi.BSDFSample3f() 
-        bs.pdf = pdf
-        bs.sampled_component = mi.UInt32(0) 
-
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.DiffuseReflection)
-        bs.wo = wo
-        bs.eta = 1.0 
-
-        n_dot_wi = dr.maximum(0., mi.Frame3f.cos_theta(si.wi))
-        n_dot_wo = dr.maximum(0., mi.Frame3f.cos_theta(wo))
-
-        f_base_diffuse = (mi.Color3f(self.base_color) / math.pi) * Fd_wi * Fd_wo * n_dot_wo
-
-        FSS90 = self.roughness * (dr.dot(h, wo) ** 2)
-        FSS_wi = (1. + (FSS90 - 1.) * (1 - n_dot_wi) ** 5)
-        FSS_wo = (1. + (FSS90 - 1.) * (1 - n_dot_wo) ** 5)
-
-        f_subsurface = ((1.25 * mi.Color3f(self.base_color)) / math.pi) \
-                * (FSS_wi * FSS_wo * ((1 / (n_dot_wi + n_dot_wo)) - 0.5) + 0.5) \
-                * n_dot_wo
-
-        is_active = active & dr.neq(n_dot_wi + n_dot_wo, 0.)
-
-        f_diffuse = ((1 - self.subsurface) * f_base_diffuse + self.subsurface * f_subsurface) 
-
-        return (f_diffuse, pdf, is_active, wo, h)
-
-    def f_metal (self, si, sample1, sample2, active) : 
-        bs = mi.BSDFSample3f() 
-        cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-
-        is_active = active & (cos_theta_i > 0.)
-
-        aspect = dr.sqrt(1 - 0.9 * self.anisotropic)
-        alpha_x = dr.maximum(0.0001, self.roughness**2 / aspect)
-        alpha_y = dr.maximum(0.0001, self.roughness**2 * aspect)
-
-        distr = mi.MicrofacetDistribution(mi.MicrofacetType.GGX, alpha_x, alpha_y)
-
-        m, bs.pdf = distr.sample(si.wi, sample2)
-
-        bs.wo = mi.reflect(si.wi, m)
-        bs.eta = 1.
-        bs.sampled_component = 0
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-
-        is_active = is_active & dr.neq(bs.pdf, 0.) & (mi.Frame3f.cos_theta(bs.wo) > 0. )
-
-        Gm = distr.G(si.wi, bs.wo, m)
-
-        base_color = mi.Color3f(self.base_color)
-        white_color = mi.Color3f([1., 1., 1.])
-
-        lum = mi.luminance(base_color)
-
-        C_tint = dr.select(lum > 0, base_color / lum, white_color)
-        Ks = (1 - self.specular_tint) + self.specular_tint * C_tint
-        R0 = (1.5 - 1) ** 2 / (1.5 + 1) ** 2
-        C0 = self.specular * R0 * (1 - self.metallic) * Ks + self.metallic * base_color
-
-        Fm = C0 + (1 - C0) * (1 - dr.abs(dr.dot(m, bs.wo))) ** 5 
-
-        weight = Gm * dr.dot(bs.wo, m) / cos_theta_i
-
-        bs.pdf /= 4. * dr.dot(bs.wo, m)
-
-        weight *= Fm
-
-        return ((weight * bs.pdf), bs.pdf, is_active, bs.wo, m)
+        self.m_components = [diffuse_reflection_flags, glossy_reflection_flags, glossy_transmission_flags] 
+        self.m_flags = diffuse_reflection_flags | glossy_reflection_flags | glossy_transmission_flags
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        bs = mi.BSDFSample3f() 
-        cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
+        cos_theta_i = mi.Frame3f.cos_theta(si.wi)
+        inside = cos_theta_i < 0.
 
-        f_diffuse, pdf_diffuse, active_diffuse, wo_diffuse, m_diffuse = self.f_diffuse(si, sample1, sample2, active)
-        f_sheen, pdf_sheen, active_sheen, wo_sheen, m_sheen = self.f_sheen(si, sample1, sample2, active)
-        f_metal, pdf_metal, active_metal, wo_metal, m_metal = self.f_metal(si, sample1, sample2, active)
-        # bs_clearcoat, f_clearcoat, pdf_clearcoat, active_clearcoat = self.f_clearcoat(si, sample1, sample2, active)
-        # bs_glass, f_glass, pdf_glass, active_glass = self.f_glass(si, sample1, sample2, active)
+        if inside : 
+            # only glass is active inside the surface
+            active = active & dr.neq(cos_theta_i, 0.) # now since we are transmitting, a ray can hit from inside
+     
+            wo, pdf, act, sampled_type, misc = glass_lobe_sample(si.wi, sample1, sample2, self.anisotropic, self.roughness, self.eta, cos_theta_i)
+            active = active & act
+            cos_theta_o = mi.Frame3f.cos_theta(wo)
+            f_glass = glass_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.anisotropic, self.roughness, self.eta, misc['selected_r'], misc['h'])
+     
+            weight = f_glass / pdf
+     
+            selected_r = misc['selected_r']
+     
+            bs = mi.BSDFSample3f() 
+            bs.pdf = pdf
+            bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
+            bs.sampled_type = sampled_type
+            bs.wo = wo
+            bs.eta = dr.select(selected_r, 1.0, misc['eta_it'])
+     
+            return (bs, (weight) & active)
+        else :
+            reflecting = True
+            if sample1 < self.glassProb : 
+                sample_new = sample1 / self.glassProb
+                wo, pdf, act, sampled_type, misc = glass_lobe_sample(si.wi, sample_new, sample2, self.anisotropic, self.roughness, self.eta, cos_theta_i)
+                reflecting = reflecting & misc['selected_r']
+                pdf *= self.glassProb
+            elif sample1 < self.glassProb + self.diffuseProb :
+                wo, pdf, act, sampled_type, misc = diffuse_lobe_sample(si.wi, sample1, sample2)
+                pdf *= self.diffuseProb
+            elif sample1 < self.glassProb + self.diffuseProb + self.metalProb : 
+                wo, pdf, act, sampled_type, misc = metal_lobe_sample(si.wi, sample1, sample2, self.anisotropic, self.roughness) 
+                pdf *= self.metalProb
+            else :
+                wo, pdf, act, sampled_type, misc = clearcoat_lobe_sample(si.wi, sample1, sample2, self.clearcoat_gloss)
+                pdf *= self.clearcoatProb
+
+            active = active & act
+            cos_theta_o = mi.Frame3f.cos_theta(wo)
+            
+            if reflecting : 
+                f_diffuse = diffuse_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.roughness, self.base_color, self.subsurface)
+                f_metal = modified_metal_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, 
+                        self.anisotropic, self.roughness, self.specular_tint, self.specular, self.metallic)
+                f_glass = glass_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.anisotropic, 
+                        self.roughness, self.eta, misc['selected_r'], misc['h'])
+                f_sheen = sheen_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.sheen_tint)
+                f_clearcoat = clearcoat_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.clearcoat_gloss)
                 
-        # f_diffuse = dr.select(cos_theta_i <= 0, 0, f_diffuse)
-        # f_metal = dr.select(cos_theta_i <= 0, 0, f_metal)
+                f_principled = (self.diffuseWeight * f_diffuse) \
+                        + (self.sheenWeight * f_sheen) \
+                        + (self.metalWeight * f_metal) \
+                        + (self.glassWeight * f_glass) \
+                        + (self.clearcoatWeight * f_clearcoat)
 
-        #f_clearcoat = dr.select(cos_theta_i <= 0, 0, f_clearcoat)
-        #f_sheen = dr.select(cos_theta_i <= 0, 0, f_sheen)
+                weight = f_principled / pdf
 
-        # f_disney = self.diffuseWeight * f_diffuse \
-        #         + (1 - self.metallic) * self.sheen * f_sheen \
-        #         + self.metalWeight * f_metal \
-        #         + self.clearcoatWeight * f_clearcoat \
-        #         + self.glassWeight * f_glass
-        f_disney = dr.select(
-            sample1 <= self.diffuseProb, 
-            f_diffuse, 
-            dr.select(
-                sample1 <= self.diffuseProb + self.sheenProb,
-                f_sheen, 
-                f_metal
-            )
-        )
-        # f_disney = (self.diffuseWeight * f_diffuse) \
-        #         + (self.metalWeight * f_metal)
+                active = active & (cos_theta_i > 0.) & (cos_theta_o > 0.)
 
-        bs.wo = dr.select(
-            sample1 <= self.diffuseProb, 
-            wo_diffuse, 
-            dr.select(
-                sample1 <= self.diffuseProb + self.sheenProb, 
-                wo_sheen,
-                wo_metal
-            )
-        )
+                bs = mi.BSDFSample3f() 
+                bs.pdf = pdf
+                bs.sampled_component = mi.UInt32(0) 
+                bs.sampled_type = sampled_type
+                bs.wo = wo
+                bs.eta = 1.0 
 
-        bs.eta = 1.
+                return (bs, weight & active)
 
-        bs.sampled_component = dr.select(
-            sample1 <= self.diffuseProb, 
-            mi.UInt32(0), 
-            mi.UInt32(1)
-        )
-
-        bs.sampled_type = dr.select(
-            sample1 <= self.diffuseProb, 
-            mi.UInt32(+mi.BSDFFlags.DiffuseReflection), 
-            mi.UInt32(+mi.BSDFFlags.GlossyReflection)
-        )
-
-        P = dr.select(
-            sample1 <= self.diffuseProb,
-            self.diffuseProb,
-            dr.select(
-                sample1 <= self.diffuseProb + self.sheenProb,
-                self.sheenProb,
-                self.metalProb
-            )
-        )
-
-        bs.pdf = dr.select(
-            sample1 <= self.diffuseProb, 
-            pdf_diffuse, 
-            dr.select(
-                sample1 <= self.diffuseProb + self.sheenProb, 
-                pdf_sheen,
-                pdf_metal
-            ) 
-        )
-
-        bs.pdf *= P
-
-        active = dr.select(sample1 <= self.diffuseProb, 
-            active_diffuse, 
-            dr.select(
-                sample1 <= self.diffuseProb + self.sheenProb,
-                active_sheen,
-                active_metal
-            )
-        )
-        
-        return (bs, (f_disney / bs.pdf) & active)
+            else : 
+                f_glass = glass_bsdf(si.wi, wo, cos_theta_i, cos_theta_o, self.base_color, self.anisotropic, self.roughness, self.eta, misc['selected_r'], misc['h'])
+         
+                weight = f_glass / pdf
+         
+                selected_r = misc['selected_r']
+         
+                bs = mi.BSDFSample3f() 
+                bs.pdf = pdf
+                bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
+                bs.sampled_type = sampled_type
+                bs.wo = wo
+                bs.eta = dr.select(selected_r, 1.0, misc['eta_it'])
+         
+                return (bs, (weight) & active)
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -772,4 +593,4 @@ class DisneyPrincipledBSDF (mi.BSDF) :
         print("🏝️ there is nothing to do here 🏝️")
 
     def to_string(self):
-        Return ('DisneyPrincipledBSDF[]')
+        return ('DisneyPrincipledBSDF[]')
