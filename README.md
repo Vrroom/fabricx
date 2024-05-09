@@ -73,3 +73,11 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
   publisher={ACM New York, NY, USA}
 }
 ```
+
+## More Images For Fun
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/d98ada88-1b13-44d0-b9c2-3cb448bc7027)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/ea27b3ba-2c58-45c8-8a8d-6fcbc33b79b4)
+
+(Why does this become black at low roughness and high thickness!!!)
