@@ -57,6 +57,9 @@ def sggx_pdf(wm, s_mat) :
            / (dr.pi * dr.sqr(den))
 
 def sggx_projected_area(wi, s_mat) : 
+    """
+    This is an even function in wi. That is sggx_projected_area(wi, s_mat) = sggx_projected_area(-wi, s_mat)
+    """
     sigma2 = wi.x * wi.x * s_mat[0, 0] + wi.y * wi.y * s_mat[1, 1] + \
              wi.z * wi.z * s_mat[2, 2] + \
              2. * (wi.x * wi.y * s_mat[0, 1] + wi.x * wi.z * s_mat[0, 2] + \

@@ -9,6 +9,7 @@ from mitsuba import ScalarTransform4f as T
 from bsdf import * 
 from solid_texture_bsdf import * 
 from spongecake_bsdf import * 
+from itertools import product
 
 mi.register_bsdf('tinted_dielectric_bsdf', lambda props: TintedDielectricBSDF(props))
 mi.register_bsdf('disney_diffuse_bsdf', lambda props: DisneyDiffuseBSDF(props))
@@ -21,7 +22,7 @@ mi.register_bsdf('solid_texture_bsdf', lambda props : SolidTextureBSDF(props))
 mi.register_bsdf('spongecake_bsdf', lambda props: SimpleSpongeCake(props))
 
 
-SPP = 2048
+SPP = 512
 WIDTH = 683
 HEIGHT = 512
 MAX_DEPTH = -1
@@ -67,10 +68,57 @@ def imgArrayToPIL (arr) :
     chanType = "RGBA" if arr.shape[2] == 4 else "RGB"
     return Image.fromarray(arr, chanType)
 
-params = mi.traverse(scene)
+def make_image_grid (images, row_major=True, gutter=True):
+    """
+    Make a large image where the images are stacked.
 
-image = mi.render(scene, sensor=load_sensor()) 
-img = (image ** (1.0 / 2.2)).numpy()
-img = np.clip(img, 0, 1)
-imgArrayToPIL(img).save('img.png')
+    images: list/list of list of PIL Images
+    row_major: if images is list, whether to lay them down horizontally/vertically
+    """
+    assert isinstance(images, list) and len(images) > 0, "images is either not a list or an empty list"
+    if isinstance(images[0], list) :
+        return make_image_grid([make_image_grid(row) for row in images], False)
+    else :
+        if row_major :
+            H = min(a.size[1] for a in images)
+            images = [a.resize((int(H * a.size[0] / a.size[1]), H)) for a in images]
+            W = sum(a.size[0] for a in images)
+            gutter_width = int(0.01 * W) if gutter else 0
+            W += (len(images) - 1) * gutter_width
+            img = Image.new('RGB', (W, H))
+            cSum = 0
+            for a in images :
+                img.paste(a, (cSum, 0))
+                cSum += (a.size[0] + gutter_width)
+        else :
+            W = min(a.size[0] for a in images)
+            images = [a.resize((W, int(W * a.size[1] / a.size[0]))) for a in images]
+            H = sum(a.size[1] for a in images)
+            gutter_width = int(0.01 * W) if gutter else 0
+            H += (len(images) - 1) * gutter_width
+            img = Image.new('RGB', (W, H))
+            cSum = 0
+            for a in images :
+                img.paste(a, (0, cSum))
+                cSum += (a.size[1] + gutter_width)
+        return img
+
+params = mi.traverse(scene)
+alpha = [0.1, 0.5, 1.0]
+optical_depth = [1.0, 2.0, 5.0]
+
+images = []
+
+for a in alpha: 
+    images.append([])
+    for od in optical_depth: 
+        params['bsdf-matpreview.alpha'] = mi.Float(a)
+        params['bsdf-matpreview.optical_depth'] = mi.Float(od)
+        params.update()
+        image = mi.render(scene, sensor=load_sensor()) 
+        img = (image ** (1.0 / 2.2)).numpy()
+        img = np.clip(img, 0, 1)
+        images[-1].append(imgArrayToPIL(img))
+
+make_image_grid(images).save('grid.png')
 
