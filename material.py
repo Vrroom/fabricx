@@ -104,8 +104,9 @@ def make_image_grid (images, row_major=True, gutter=True):
         return img
 
 params = mi.traverse(scene)
+
 alpha = [0.1, 0.5, 1.0]
-optical_depth = [1.0, 2.0, 5.0]
+optical_depth = [1., 3., 5.]
 
 images = []
 
@@ -120,5 +121,26 @@ for a in alpha:
         img = np.clip(img, 0, 1)
         images[-1].append(imgArrayToPIL(img))
 
-make_image_grid(images).save('grid.png')
+make_image_grid(images).save('grid_surface.png')
+
+params['bsdf-matpreview.surface_or_fiber'] = mi.Bool(False)
+params.update()
+
+alpha = [0.1, 0.5, 1.0]
+optical_depth = [1., 3., 5.]
+
+images = []
+
+for a in alpha: 
+    images.append([])
+    for od in optical_depth: 
+        params['bsdf-matpreview.alpha'] = mi.Float(a)
+        params['bsdf-matpreview.optical_depth'] = mi.Float(od)
+        params.update()
+        image = mi.render(scene, sensor=load_sensor()) 
+        img = (image ** (1.0 / 2.2)).numpy()
+        img = np.clip(img, 0, 1)
+        images[-1].append(imgArrayToPIL(img))
+
+make_image_grid(images).save('grid_fiber.png')
 
