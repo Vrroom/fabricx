@@ -8,9 +8,9 @@ SpongeCake (see citation below) is a popular BSDF that has been used a lot for c
 
 ### Surface SGGX Distribution
 
-In the image below, each row is for a different `alpha`, their roughness parameter, taking values `0.1, 0.5, 1.0`. Each column is for a different `optical_depth`, taking values `1.0, 2.0, 5.0`. Please note that we use the surface version of the SGGX distribution function i.e. `S = diag([alpha**2, alpha**2, 1])` here.
+In the image below, each row is for a different `alpha`, their roughness parameter, taking values `0.1, 0.5, 1.0`. Each column is for a different `optical_depth`, taking values `1.0, 3.0, 5.0`. Please note that we use the surface version of the SGGX distribution function i.e. `S = diag([alpha**2, alpha**2, 1])` here.
 
-![grid](https://github.com/Vrroom/fabricx/assets/7254326/7b075ceb-9f5a-4a84-83c7-1f955e8ac30f)
+![image](https://github.com/Vrroom/fabricx/assets/7254326/041dd93f-66ab-4fe1-863c-e3717fb8189e)
 
 For comparison, this is their render (from Fig. 8).
 
