@@ -10,7 +10,7 @@ For comparison, this is their render (from Fig. 8).
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/9bdbd29a-89c5-481d-ad44-b98baa45d8aa)
 
-Note that what we call `optical_depth` is really the product `T\rho` from their equations. This is what they are calling just `T` in their figures. As you can see, ours looks nothing like cloth at the moment, whereas, I think theirs does. Ours becomes darker as `alpha` increases for some reason. 
+Note that what we call `optical_depth` is really the product `T\rho` from their equations. This is what they are calling just `T` in their figures. As you can see, ours looks nothing like cloth at the moment, whereas, I think theirs does. Ours becomes darker as `alpha` increases for some reason. Also, I'm not sure what `optical_depth` does for us as across each row, the renders look roughly the same.
 
 ```
 @article{wang2022spongecake,
