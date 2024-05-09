@@ -57,7 +57,8 @@ class SimpleSpongeCake (mi.BSDF) :
         bs = mi.BSDFSample3f() 
 
         alpha = dr.maximum(0.0001, self.alpha)
-        S = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1)) # surface type matrix. Later we'll rotate it and all that.
+        # S = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1)) # surface type matrix. Later we'll rotate it and all that.
+        S = dr.diag(mi.Vector3f(1, 1, alpha * alpha)) # surface type matrix. Later we'll rotate it and all that.
         h = sggx_sample(si.sh_frame, sample2, S)
         D = sggx_pdf(h, S)
         
