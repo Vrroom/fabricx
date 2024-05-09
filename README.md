@@ -12,6 +12,8 @@ In the image below, each row is for a different `alpha`, their roughness paramet
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/041dd93f-66ab-4fe1-863c-e3717fb8189e)
 
+(Why is the shading gone in the last row!!!)
+
 For comparison, this is their render (from Fig. 8).
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/9bdbd29a-89c5-481d-ad44-b98baa45d8aa)
