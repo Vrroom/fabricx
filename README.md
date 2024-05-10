@@ -12,6 +12,8 @@ In the image below, each row is for a different `alpha`, their roughness paramet
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/041dd93f-66ab-4fe1-863c-e3717fb8189e)
 
+(Why is the shading gone in the last row!!!)
+
 For comparison, this is their render (from Fig. 8).
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/9bdbd29a-89c5-481d-ad44-b98baa45d8aa)
@@ -71,3 +73,30 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
   publisher={ACM New York, NY, USA}
 }
 ```
+
+## More Images For Fun
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/d98ada88-1b13-44d0-b9c2-3cb448bc7027)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/ea27b3ba-2c58-45c8-8a8d-6fcbc33b79b4)
+
+(Why does this become black at low roughness and high thickness!!!)
+
+## Some debugging 
+
+I was expecting that at `alpha = 1`, sampling from SGGX will be the same as sampling from a uniform sphere. This is not what is happening in practice. Compare the two rows below (first one is with uniform sphere sampling and the other is SGGX with `alpha = 1`). They don't look the same. Funnily, neither of them look like the original paper either. 
+
+(Ok, they look the same when I leave D as it is and not divide it by 4). 
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/9d7590cb-006b-4fc9-86e8-7f37ce0a2147)
+
+![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/db62de41-4f15-4594-8cf0-c8e8b8f585c0)
+
+The following is when I used the wrong frame for sampling. These experiments show that figuring out a principled way to do SGGX sampling will solve my problem. 
+
+![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/ea74c576-5d9d-4fc9-a49a-f0c2d56f9eaa)
+
+The fact that shading is missing in my renders is a crucial point. I think this is a good handle for debugging since I can think about it reasonably.
+
+I may be missing the diffuse ??? Not sure. There is some stuff on this in the SGGX paper as well as https://github.com/taqu/Microflake-SGGX/blob/master/microflake_sggx.cpp. Just don't understand the theory well enough at the moment. 
+
