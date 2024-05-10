@@ -86,6 +86,8 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
 
 I was expecting that at `alpha = 1`, sampling from SGGX will be the same as sampling from a uniform sphere. This is not what is happening in practice. Compare the two rows below (first one is with uniform sphere sampling and the other is SGGX with `alpha = 1`). They don't look the same. Funnily, neither of them look like the original paper either. 
 
+(Ok, they look the same when I leave D as it is and not divide it by 4). 
+
 ![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/9d7590cb-006b-4fc9-86e8-7f37ce0a2147)
 
 ![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/db62de41-4f15-4594-8cf0-c8e8b8f585c0)
