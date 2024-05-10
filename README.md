@@ -94,4 +94,6 @@ The following is when I used the wrong frame for sampling. These experiments sho
 
 ![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/ea74c576-5d9d-4fc9-a49a-f0c2d56f9eaa)
 
+The fact that shading is missing in my renders is a crucial point. I think this is a good handle for debugging since I can think about it reasonably.
+
 
