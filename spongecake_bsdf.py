@@ -40,6 +40,24 @@ def shadow_masking_term_transmit (wi, wo, cos_theta_i, cos_theta_o, optical_dept
 
     return original_term * extra_term
 
+def sample_specular (sample2, wi, S) : 
+    sh_frame = mi.Frame3f(wi) 
+    h = sggx_sample(sh_frame, sample2, S)
+    D = sggx_pdf(h, S)
+    wo = mi.reflect(wi, h)
+    pdf = D / (4. * dr.abs(dr.dot(wo, h)))
+    return h, D, wo, pdf
+
+def sample_diffuse (pcg, sample2, wi, S) : 
+    sh_frame = mi.Frame3f(wi) 
+    h = sggx_sample(sh_frame, sample2, S) # can't use the same sample2. Has to be independent.
+    D = sggx_pdf(h, S)
+    sample_iid = mi.Point2f(pcg.next_float32(), pcg.next_float32())
+    wo_local = mi.warp.square_to_cosine_hemisphere(sample_iid) # I verified via the equation in SGGX paper (26) that this is indeed correct
+    wo = mi.Frame3f(h).to_world(wo_local)
+    pdf = dr.dot(wo, h) / dr.pi # need to worry about the pdf here
+    return h, D, wo, pdf
+
 class SimpleSpongeCake (mi.BSDF) : 
 
     def __init__ (self, props) : 
@@ -54,25 +72,39 @@ class SimpleSpongeCake (mi.BSDF) :
         self.m_components = [reflection_flags, transmission_flags]
         self.m_flags = reflection_flags | transmission_flags
 
+        self.pcg = mi.PCG32()
+
     def sample (self, ctx, si, sample1, sample2, active) : 
         bs = mi.BSDFSample3f() 
 
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) # surface type matrix. Later we'll rotate it and all that.
-        S_fibr = dr.diag(mi.Vector3f(1., 1., alpha * alpha)) # surface type matrix. Later we'll rotate it and all that.
+        S_fibr = dr.diag(mi.Vector3f(1., 1., alpha * alpha)) # fiber type matrix. Later we'll rotate it and all that.
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
 
-        sh_frame = mi.Frame3f(si.wi)
-        # h = sggx_sample(si.sh_frame, sample2, S) # is this generated sample in the local frame or global frame? 
         # TODO: looking at the docs at https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#sggx_sample, it seems that
         # the sh_frame is constructed as mi.Frame3f(si.wi). I checked via PDB that this is different from si.sh_frame
         # even if this is correct, the question remains whether the h is correct. I think so. It'll be in the same coordinate system as wi now.
         # which is the local coordinate frame. Even if we look at the visualizations now, they see better.
-        h = sggx_sample(sh_frame, sample2, S)
-        D = sggx_pdf(h, S)
+
+        specular_or_diffuse = sample1 < 1.0
+
+        h, D, wo, pdf = sample_specular(sample2, si.wi, S)
+        h_, D_, wo_, pdf_ = sample_diffuse(self.pcg, sample2, si.wi, S)
+
+        h = dr.select(specular_or_diffuse, h, h_)
+        D = dr.select(specular_or_diffuse, D, D_)
+        wo = dr.select(specular_or_diffuse, wo, wo_)
+        pdf = dr.select(specular_or_diffuse, pdf, pdf_)
+        # sh_frame = mi.Frame3f(si.wi)
+        # h = sggx_sample(sh_frame, sample2, S) # this is exactly the sampleVNDF function in the original paper
+        # D = sggx_pdf(h, S)
+        # TODO: for alpha = 1, D is uniformely 1 / pi. Shouldn't it be 1 / (4pi)
+        # No, from the SGGX paper, this is the correct thing. D doesn't normalize to 1, which I found a bit strange
         
-        wo = mi.reflect(si.wi, h) 
+        # wo = mi.reflect(si.wi, h) 
+
         F = mi.Color3f(self.base_color) + (1.0 - mi.Color3f(self.base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
@@ -89,7 +121,7 @@ class SimpleSpongeCake (mi.BSDF) :
         bs.eta = 1.
         bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
         bs.sampled_type = dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission))
-        bs.pdf = D / (4. * dr.abs(dr.dot(bs.wo, h))) # multiply by Jacobian
+        bs.pdf = pdf #D / (4. * dr.abs(dr.dot(bs.wo, h))) # multiply by Jacobian
 
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) 
 
@@ -134,5 +166,5 @@ class SimpleSpongeCake (mi.BSDF) :
     def parameters_changed(self, keys):
         pass
 
-    def to_string(self):
+    def to_strink(self):
         return ('SimpleSpongeCake[]')
