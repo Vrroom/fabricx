@@ -89,3 +89,9 @@ I was expecting that at `alpha = 1`, sampling from SGGX will be the same as samp
 ![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/9d7590cb-006b-4fc9-86e8-7f37ce0a2147)
 
 ![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/db62de41-4f15-4594-8cf0-c8e8b8f585c0)
+
+The following is when I used the wrong frame for sampling. These experiments show that figuring out a principled way to do SGGX sampling will solve my problem. 
+
+![grid_surface_2](https://github.com/Vrroom/fabricx/assets/7254326/ea74c576-5d9d-4fc9-a49a-f0c2d56f9eaa)
+
+
