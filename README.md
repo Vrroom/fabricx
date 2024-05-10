@@ -98,4 +98,5 @@ The following is when I used the wrong frame for sampling. These experiments sho
 
 The fact that shading is missing in my renders is a crucial point. I think this is a good handle for debugging since I can think about it reasonably.
 
+I may be missing the diffuse ??? Not sure. There is some stuff on this in the SGGX paper as well as https://github.com/taqu/Microflake-SGGX/blob/master/microflake_sggx.cpp. Just don't understand the theory well enough at the moment. 
 
