@@ -45,7 +45,7 @@ def sample_specular (sample2, wi, S) :
     h = sggx_sample(sh_frame, sample2, S)
     D = sggx_pdf(h, S)
     wo = mi.reflect(wi, h)
-    pdf = D / (4. * dr.abs(dr.dot(wo, h)))
+    pdf = D / (4. * sggx_projected_area(wi, S))
     return h, D, wo, pdf
 
 def sample_diffuse (pcg, sample2, wi, S) : 
@@ -83,11 +83,6 @@ class SimpleSpongeCake (mi.BSDF) :
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
 
-        # TODO: looking at the docs at https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#sggx_sample, it seems that
-        # the sh_frame is constructed as mi.Frame3f(si.wi). I checked via PDB that this is different from si.sh_frame
-        # even if this is correct, the question remains whether the h is correct. I think so. It'll be in the same coordinate system as wi now.
-        # which is the local coordinate frame. Even if we look at the visualizations now, they see better.
-
         specular_or_diffuse = sample1 < 1.0
 
         h, D, wo, pdf = sample_specular(sample2, si.wi, S)
@@ -97,15 +92,8 @@ class SimpleSpongeCake (mi.BSDF) :
         D = dr.select(specular_or_diffuse, D, D_)
         wo = dr.select(specular_or_diffuse, wo, wo_)
         pdf = dr.select(specular_or_diffuse, pdf, pdf_)
-        # sh_frame = mi.Frame3f(si.wi)
-        # h = sggx_sample(sh_frame, sample2, S) # this is exactly the sampleVNDF function in the original paper
-        # D = sggx_pdf(h, S)
-        # TODO: for alpha = 1, D is uniformely 1 / pi. Shouldn't it be 1 / (4pi)
-        # No, from the SGGX paper, this is the correct thing. D doesn't normalize to 1, which I found a bit strange
-        
-        # wo = mi.reflect(si.wi, h) 
 
-        F = mi.Color3f(self.base_color) + (1.0 - mi.Color3f(self.base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
+        F = mi.Color3f(self.base_color) # + (1.0 - mi.Color3f(self.base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
         cos_theta_o = mi.Frame3f.cos_theta(wo)
@@ -121,7 +109,7 @@ class SimpleSpongeCake (mi.BSDF) :
         bs.eta = 1.
         bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
         bs.sampled_type = dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission))
-        bs.pdf = pdf #D / (4. * dr.abs(dr.dot(bs.wo, h))) # multiply by Jacobian
+        bs.pdf = pdf 
 
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) 
 
@@ -132,19 +120,6 @@ class SimpleSpongeCake (mi.BSDF) :
         weight = (f_sponge_cake / bs.pdf) 
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
-
-        # sigma_wi = sggx_projected_area(si.wi, S)
-        # sigma_wo = sggx_projected_area(wo, S)
-
-        # cos_theta_o = dr.mulsign(cos_theta_o, cos_theta_i)
-        # cos_theta_i = dr.mulsign(cos_theta_i, cos_theta_i)
-
-        # gamma_wi = sigma_wi / cos_theta_i
-        # gamma_wo = sigma_wo / cos_theta_o
-
-        # extra_term = dr.exp(self.optical_depth * gamma_wo)
-        # original_term = (1.0 - dr.exp(-self.optical_depth * (gamma_wi + gamma_wo))) / (gamma_wi + gamma_wo)
-        # print(f'{self.optical_depth},{weight[0]},{weight[1]},{weight[2]},{G_r},{G_t},{F[0]},{F[1]},{F[2]},{R},{original_term},{extra_term},{gamma_wi},{gamma_wo},{selected_r}')
             
         return (bs, weight)
 
