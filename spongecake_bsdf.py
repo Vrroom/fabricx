@@ -1,4 +1,6 @@
 import mitsuba as mi 
+from PIL import Image
+import numpy as np
 import math
 import drjit as dr
 from utils import *
@@ -74,6 +76,8 @@ class SimpleSpongeCake (mi.BSDF) :
 
         self.pcg = mi.PCG32()
 
+        self.texture = mi.Texture2f(mi.TensorXf(np.array(Image.open('texture.png')) / 255.))
+
     def sample (self, ctx, si, sample1, sample2, active) : 
         bs = mi.BSDFSample3f() 
 
@@ -93,7 +97,8 @@ class SimpleSpongeCake (mi.BSDF) :
         wo = dr.select(specular_or_diffuse, wo, wo_)
         pdf = dr.select(specular_or_diffuse, pdf, pdf_)
 
-        F = mi.Color3f(self.base_color) # + (1.0 - mi.Color3f(self.base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
+        F = mi.Color3f(self.texture.eval(si.uv)) # mi.Color3f(self.texture[int(si.uv[0] * 512), int(si.uv[1] * 512)])
+        # F = mi.Color3f(self.base_color) # + (1.0 - mi.Color3f(self.base_color)) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
         cos_theta_o = mi.Frame3f.cos_theta(wo)
