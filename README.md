@@ -104,3 +104,8 @@ The fact that shading is missing in my renders is a crucial point. I think this 
 
 I may be missing the diffuse ??? Not sure. There is some stuff on this in the SGGX paper as well as https://github.com/taqu/Microflake-SGGX/blob/master/microflake_sggx.cpp. Just don't understand the theory well enough at the moment. 
 
+
+## Questions
+
+* How do you actually sample the `attenuation` for the multi-layered, single-scattering SpongeCake model? 
+* Is the orientation map the same as a tangent map? 
