@@ -80,6 +80,10 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
 
 ![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/ea27b3ba-2c58-45c8-8a8d-6fcbc33b79b4)
 
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/19b4e532-ef05-4358-829b-e55ddba7cda0)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/a51e1eb7-c4cd-46b9-af20-28ff77dd9ebf)
+
 (Why does this become black at low roughness and high thickness!!!)
 
 ## Some debugging 
