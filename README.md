@@ -92,6 +92,13 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
 
 (Why does this become black at low roughness and high thickness)
 
+Teapots: 
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/39e3aee9-a188-4404-9c98-80c136b9e16f)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/564c75af-9720-4643-91e3-a5b8cc4bcd05)
+
+
 ## Some debugging 
 
 I was expecting that at `alpha = 1`, sampling from SGGX will be the same as sampling from a uniform sphere. This is not what is happening in practice. Compare the two rows below (first one is with uniform sphere sampling and the other is SGGX with `alpha = 1`). They don't look the same. Funnily, neither of them look like the original paper either. 
