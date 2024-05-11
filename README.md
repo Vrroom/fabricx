@@ -84,7 +84,13 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
 
 ![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/a51e1eb7-c4cd-46b9-af20-28ff77dd9ebf)
 
-(Why does this become black at low roughness and high thickness!!!)
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/b0e6e157-342c-43f5-8e44-923be409e0fa)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/03de6b63-20a1-45aa-85a1-c6e1ded29c45)
+
+(UV map seems wrong)
+
+(Why does this become black at low roughness and high thickness)
 
 ## Some debugging 
 
