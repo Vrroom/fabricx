@@ -80,7 +80,30 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
 
 ![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/ea27b3ba-2c58-45c8-8a8d-6fcbc33b79b4)
 
-(Why does this become black at low roughness and high thickness!!!)
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/19b4e532-ef05-4358-829b-e55ddba7cda0)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/a51e1eb7-c4cd-46b9-af20-28ff77dd9ebf)
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/b0e6e157-342c-43f5-8e44-923be409e0fa)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/03de6b63-20a1-45aa-85a1-c6e1ded29c45)
+
+(UV map seems wrong)
+
+(Why does this become black at low roughness and high thickness)
+
+Teapots: 
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/39e3aee9-a188-4404-9c98-80c136b9e16f)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/564c75af-9720-4643-91e3-a5b8cc4bcd05)
+
+Actual Cloth Like Models: 
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/91ffc55f-b6e7-47d6-9b13-c1cb551f93a3)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/a3511cf9-e71f-4f80-b372-139c2425ffb8)
+
 
 ## Some debugging 
 
@@ -100,3 +123,8 @@ The fact that shading is missing in my renders is a crucial point. I think this 
 
 I may be missing the diffuse ??? Not sure. There is some stuff on this in the SGGX paper as well as https://github.com/taqu/Microflake-SGGX/blob/master/microflake_sggx.cpp. Just don't understand the theory well enough at the moment. 
 
+
+## Questions
+
+* How do you actually sample the `attenuation` for the multi-layered, single-scattering SpongeCake model? 
+* Is the orientation map the same as a tangent map? 
