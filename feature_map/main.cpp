@@ -1,4 +1,6 @@
 #include <cstdio>
+#include <set>
+#include <utility>
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
@@ -6,6 +8,7 @@
 #include <sstream>
 #include <fstream>
 #include <float.h>
+#include "cxxopts.hpp"
 #include "SETTINGS.h"
 #include "imageTools.h"
 #include "primitive.h"
@@ -13,14 +16,16 @@
 
 using namespace std;
 
-int windowWidth = 1024;
-int windowHeight = 1024;
-int profileNumPoints=200; 
-int sweepNumPoints=200;
+int WINDOW_WIDTH = 1024;
+int WINDOW_HEIGHT = 1024;
+int NUM_PROFILE_POINTS=200; 
+int NUM_SWEEP_POINTS=200;
 
 double R = 10; 
 double PHI = M_PI / 3;
 double EPSILON = 1e-3;
+
+typedef pair<int, int> P; 
 
 struct Filament2D {
   Rectangle rect; 
@@ -119,7 +124,7 @@ VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangent
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
-void renderImage(int& xRes, int& yRes, const string& filename) 
+void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
   Image im(xRes, yRes);
   // allocate the final image
@@ -144,6 +149,42 @@ void renderImage(int& xRes, int& yRes, const string& filename)
       im.set_color(x, y, color); 
     }
   }
+  // detect whether there are some degenerate pixels 
+  if (map_type == NORMAL_MAP || map_type == TANGENT_MAP) { 
+    set<P> degenerate; 
+    for (int y = 0; y < yRes; y++) {
+      for (int x = 0; x < xRes; x++) {
+        VEC3 color = im.get_color(x, y); 
+        VEC3 vec = color * 2.0 - VEC3(1.0, 1.0, 1.0);
+        if (abs(norm(vec) - 1.0) > 1e-2) 
+          degenerate.insert(make_pair(x, y));
+      }
+    }
+    vector<P> nbrs = { {-1, 0}, {0, 1}, {1, 0}, {0, -1} };
+    while(!degenerate.empty()) { 
+      auto it = degenerate.begin(); 
+      for (; it != degenerate.end(); ++it) {
+        int x = it->first, y = it->second; 
+        bool found = false;
+        for (auto nbr: nbrs) { 
+          int x_ = x + nbr.first, y_ = y + nbr.second; 
+          if (x_ < xRes && x_ >= 0 && y_ < yRes && y_ >= 0) {
+            VEC3 color = im.get_color(x_, y_); 
+            VEC3 vec = color * 2.0 - VEC3(1.0, 1.0, 1.0);
+            if (abs(norm(vec) - 1.0) <= 1e-2) {
+              im.set_color(x, y, color);
+              found = true;
+            }
+          }
+        }
+        if (found) {
+          degenerate.erase(it); 
+          break;
+        }
+      }
+    }
+  }
+  // Fix them.
   writePPM(filename, im);
 
 }
@@ -156,15 +197,16 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
     double a = fil.rect.s2 / 2;
     double tan_theta = w / (2.0 * R); 
     double u_max = atan(tan_theta); 
-    for (int i = 0; i < profileNumPoints; i++) {
-      double u = -u_max + (2.0 * u_max) * (i + 0.0) / (profileNumPoints + 0.0); 
-      VEC3 x_0(fil.rect.o[1] + w/2, fil.rect.o[0] + a + R * sin(u), R * cos(u) - R);
-      for (int j = 0; j < sweepNumPoints; j++) {
-        double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (sweepNumPoints + 0.0);
+    for (int i = 0; i < NUM_PROFILE_POINTS; i++) {
+      double u = -u_max + (2.0 * u_max) * (i + 0.0) / (NUM_PROFILE_POINTS + 0.0); 
+      VEC3 x_0(fil.rect.o[1] + a, fil.rect.o[0] + w/2 + R * sin(u), R * cos(u) - R);
+      for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
+        double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
         VEC3 n(
           sin(v), 
           sin(u) * cos(v), 
-          cos(u) * cos(v));
+          cos(u) * cos(v)
+        );
         VEC3 t(
           -cos(v) * sin(PHI), 
           cos(u) * cos(PHI) + sin(u) * sin(v) * sin(PHI), 
@@ -180,11 +222,11 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
     double a = fil.rect.s1 / 2;
     double tan_theta = w / (2.0 * R); 
     double u_max = atan(tan_theta); 
-    for (int i = 0; i < profileNumPoints; i++) {
-      double u = -u_max + (2.0 * u_max) * (i + 0.0) / (profileNumPoints + 0.0); 
+    for (int i = 0; i < NUM_PROFILE_POINTS; i++) {
+      double u = -u_max + (2.0 * u_max) * (i + 0.0) / (NUM_PROFILE_POINTS + 0.0); 
       VEC3 x_0(R * sin(u) + w/2 + fil.rect.o[1], a + fil.rect.o[0], R * cos(u) - R);
-      for (int j = 0; j < sweepNumPoints; j++) {
-        double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (sweepNumPoints + 0.0);
+      for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
+        double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
         VEC3 n(
           sin(u) * cos(v), 
           sin(v), 
@@ -200,12 +242,12 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       }
     }
   }
-  for (int i = 0; i < profileNumPoints - 1; i++) {
-    for (int j = 0; j < sweepNumPoints; j++) {
-      int l = i * sweepNumPoints + j; 
-      int m = i * sweepNumPoints + (j + 1) % sweepNumPoints; 
-      int n = (i + 1) * sweepNumPoints + (j + 1) % sweepNumPoints; 
-      int p = (i + 1) * sweepNumPoints + j;
+  for (int i = 0; i < NUM_PROFILE_POINTS - 1; i++) {
+    for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
+      int l = i * NUM_SWEEP_POINTS + j; 
+      int m = i * NUM_SWEEP_POINTS + (j + 1) % NUM_SWEEP_POINTS; 
+      int n = (i + 1) * NUM_SWEEP_POINTS + (j + 1) % NUM_SWEEP_POINTS; 
+      int p = (i + 1) * NUM_SWEEP_POINTS + j;
       auto c1 = getColor(l, m, n, normals, tangents, fil.type, map_type); 
       auto c2 = getColor(n, p, l, normals, tangents, fil.type, map_type); 
       scene.add_primitive(
@@ -237,16 +279,39 @@ void build (FilamentMap &fil_map, FeatureMapType map_type) {
 
 void renderMapType (FilamentMap &fil_map, FeatureMapType map_type, string fileName) {
   build(fil_map, map_type);
-  renderImage(windowWidth, windowHeight, fileName);
+  renderImage(WINDOW_WIDTH, WINDOW_HEIGHT, fileName, map_type);
 }
 
-int main(int argc, char** argv) {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <Filament Map file>" << endl;
-    return 1;
+int main(int argc, char* argv[]) {
+  cxxopts::Options options(argv[0], " - Command line options");
+  string file_path;
+  options
+    .add_options()
+    ("w,window-width", "Image width", cxxopts::value<int>()->default_value(std::to_string(WINDOW_WIDTH)))
+    ("h,window-height", "Image height", cxxopts::value<int>()->default_value(std::to_string(WINDOW_HEIGHT)))
+    ("p,num-profile-points", "Number of points on the profile curve", cxxopts::value<int>()->default_value(std::to_string(NUM_PROFILE_POINTS)))
+    ("s,num-sweep-points", "Number of points on sweep curve", cxxopts::value<int>()->default_value(std::to_string(NUM_SWEEP_POINTS)))
+    ("r,radius", "Radius of curvature", cxxopts::value<double>()->default_value(std::to_string(R)))
+    ("phi,twisting-angle", "Twisting angle in radians", cxxopts::value<double>()->default_value(std::to_string(PHI)))
+    ("f,file-path", "File path for input/output", cxxopts::value<string>(file_path))
+    ("help", "Print help");
+
+  auto result = options.parse(argc, argv);
+
+  if (result.count("help")) {
+      std::cout << options.help() << std::endl;
+      return 0;
   }
-  string input(argv[1]);
-  FilamentMap fil_map = readFilamentMap(input); 
+
+  WINDOW_WIDTH = result["window-width"].as<int>();
+  WINDOW_HEIGHT = result["window-height"].as<int>();
+  NUM_PROFILE_POINTS = result["num-profile-points"].as<int>();
+  NUM_SWEEP_POINTS = result["num-sweep-points"].as<int>();
+  R = result["radius"].as<double>();
+  PHI = result["twisting-angle"].as<double>();
+  file_path = result["file-path"].as<string>(); 
+
+  FilamentMap fil_map = readFilamentMap(file_path); 
   vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
   vector<string> names = { "normal_map.ppm", "tangent_map.ppm", "id_map.ppm" }; 
   for (int i = 0; i < types.size(); i++) {

@@ -69,7 +69,7 @@ def sggx_projected_area(wi, s_mat) :
                    wi.y * wi.z * s_mat[1, 2])
     return dr.safe_sqrt(sigma2)
 
-def make_checker_board_texture (size, checker_size, colorA=(1, 0, 0,), colorB=(0, 0, 1)) :
+def make_checker_board_texture (size, checker_size, colorA=(1, 0, 0,), colorB=(0, 0, 0)) :
     assert (size // checker_size) % 2 == 0, 'Checkerboard will not tile with given config' 
     img = np.zeros((size, size, 3))
     mask = take(size, cycle([False] * checker_size + [True] * checker_size))
