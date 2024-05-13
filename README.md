@@ -98,6 +98,12 @@ Teapots:
 
 ![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/564c75af-9720-4643-91e3-a5b8cc4bcd05)
 
+Actual Cloth Like Models: 
+
+![grid_surface](https://github.com/Vrroom/fabricx/assets/7254326/91ffc55f-b6e7-47d6-9b13-c1cb551f93a3)
+
+![grid_fiber](https://github.com/Vrroom/fabricx/assets/7254326/a3511cf9-e71f-4f80-b372-139c2425ffb8)
+
 
 ## Some debugging 
 
