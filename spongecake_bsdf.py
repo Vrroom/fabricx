@@ -77,8 +77,11 @@ class SimpleSpongeCake (mi.BSDF) :
         self.pcg = mi.PCG32()
 
         self.texture = mi.Texture2f(mi.TensorXf(np.array(Image.open('texture.png')) / 255.))
+        # self.texture = mi.Texture2f(mi.TensorXf(make_checker_board_texture(512, 8)))
 
     def sample (self, ctx, si, sample1, sample2, active) : 
+        import pdb 
+        pdb.set_trace()
         bs = mi.BSDFSample3f() 
 
         alpha = dr.maximum(0.0001, self.alpha)

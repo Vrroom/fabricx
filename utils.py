@@ -1,4 +1,7 @@
 import mitsuba as mi
+import numpy as np
+from itertools import cycle
+from more_itertools import take
 import drjit as dr
 
 def half_vec (wi, wo) : 
@@ -65,6 +68,16 @@ def sggx_projected_area(wi, s_mat) :
              2. * (wi.x * wi.y * s_mat[0, 1] + wi.x * wi.z * s_mat[0, 2] + \
                    wi.y * wi.z * s_mat[1, 2])
     return dr.safe_sqrt(sigma2)
+
+def make_checker_board_texture (size, checker_size, colorA=(1, 0, 0,), colorB=(0, 0, 1)) :
+    assert (size // checker_size) % 2 == 0, 'Checkerboard will not tile with given config' 
+    img = np.zeros((size, size, 3))
+    mask = take(size, cycle([False] * checker_size + [True] * checker_size))
+    x_mask = np.array(mask)[None, :] 
+    mask = x_mask ^ x_mask.T
+    img[mask] = colorA
+    img[~mask]= colorB
+    return img
 
 if __name__ == "__main__" : 
     # TODO: Plot and verify the distribution functions from the original SGGX microflake paper

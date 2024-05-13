@@ -3,8 +3,8 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 import mitsuba as mi
-mi.set_variant('llvm_ad_rgb')
-# mi.set_variant('scalar_rgb')
+# mi.set_variant('llvm_ad_rgb')
+mi.set_variant('scalar_rgb')
 from mitsuba import ScalarTransform4f as T
 from bsdf import * 
 from solid_texture_bsdf import * 
@@ -56,7 +56,8 @@ def load_sensor () :
         }
     })
 
-scene = mi.load_file('matpreview/scene.xml')
+#scene = mi.load_file('teapot/scene.xml')
+scene = mi.load_file('try.xml')
 
 def imgArrayToPIL (arr) :
     """ utility to convert img array to PIL """
@@ -113,10 +114,10 @@ images = []
 for a in alpha: 
     images.append([])
     for od in optical_depth: 
-        params['bsdf-matpreview.alpha'] = mi.Float(a)
-        params['bsdf-matpreview.optical_depth'] = mi.Float(od)
-        params.update()
-        image = mi.render(scene, sensor=load_sensor()) 
+        # params['bsdf-matpreview.alpha'] = mi.Float(a)
+        # params['bsdf-matpreview.optical_depth'] = mi.Float(od)
+        # params.update()
+        image = mi.render(scene)# , sensor=load_sensor()) 
         img = (image ** (1.0 / 2.2)).numpy()
         img = np.clip(img, 0, 1)
         images[-1].append(imgArrayToPIL(img))
@@ -137,7 +138,7 @@ for a in alpha:
         params['bsdf-matpreview.alpha'] = mi.Float(a)
         params['bsdf-matpreview.optical_depth'] = mi.Float(od)
         params.update()
-        image = mi.render(scene, sensor=load_sensor()) 
+        image = mi.render(scene)# , sensor=load_sensor()) 
         img = (image ** (1.0 / 2.2)).numpy()
         img = np.clip(img, 0, 1)
         images[-1].append(imgArrayToPIL(img))

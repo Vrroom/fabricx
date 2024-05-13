@@ -69,7 +69,7 @@ FilamentMap readFilamentMap(const string& filePath) {
 enum FeatureMapType {
   ID_MAP,
   NORMAL_MAP, 
-  ORIENTATION_MAP, 
+  TANGENT_MAP, 
   INVALID_MAP
 };
 
@@ -108,7 +108,7 @@ VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangent
   } else if (map_type == NORMAL_MAP) { 
     VEC3 pt = normalized((normals[i] + normals[j] + normals[k]) / 3.0);
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
-  } else if (map_type == ORIENTATION_MAP) {
+  } else if (map_type == TANGENT_MAP) {
     VEC3 pt = normalized((tangents[i] + tangents[j] + tangents[k]) / 3.0);
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
   } else {
@@ -171,8 +171,8 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
           -sin(u) * cos(PHI) + cos(u) * sin(v) * sin(PHI)
         );
         vertices.push_back(x_0 + a * n); 
-        tangents.push_back(t); 
-        normals.push_back(n);
+        tangents.push_back(VEC3(t[1], t[0], -t[2])); 
+        normals.push_back(VEC3(n[1], -n[0], n[2])); // orient it like Jin et al.
       }
     }
   } else {
@@ -195,8 +195,8 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
           -sin(u) * cos(PHI) + cos(u) * sin(v) * sin(PHI)
         );
         vertices.push_back(x_0 + a * n); 
-        tangents.push_back(t); 
-        normals.push_back(n);
+        tangents.push_back(VEC3(t[1], t[0], -t[2])); 
+        normals.push_back(VEC3(n[1], -n[0], n[2])); // orient it like Jin et al.
       }
     }
   }
@@ -236,20 +236,19 @@ void build (FilamentMap &fil_map, FeatureMapType map_type) {
 }
 
 void renderMapType (FilamentMap &fil_map, FeatureMapType map_type, string fileName) {
-  // buildIrawanCircular(M_PI / 4.0, 0.2, map_type);
   build(fil_map, map_type);
   renderImage(windowWidth, windowHeight, fileName);
 }
 
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <Filament Map file>" << std::endl;
+    cerr << "Usage: " << argv[0] << " <Filament Map file>" << endl;
     return 1;
   }
-  std::string input(argv[1]);
+  string input(argv[1]);
   FilamentMap fil_map = readFilamentMap(input); 
-  vector<FeatureMapType> types = { NORMAL_MAP, ORIENTATION_MAP, ID_MAP }; 
-  vector<string> names = { "normal_map.ppm", "orientation_map.ppm", "id_map.ppm" }; 
+  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
+  vector<string> names = { "normal_map.ppm", "tangent_map.ppm", "id_map.ppm" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }
