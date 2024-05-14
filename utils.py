@@ -3,6 +3,80 @@ import numpy as np
 from itertools import cycle
 from more_itertools import take
 import drjit as dr
+from PIL import Image
+
+def imgArrayToPIL (arr) :
+    """ utility to convert img array to PIL """
+    if arr.dtype in [np.float32, float] :
+        arr = (arr * 255).astype(np.uint8)
+    elif arr.dtype in [int]:
+        arr = arr.astype(np.uint8)
+    assert(arr.dtype == np.uint8)
+    chanType = "RGBA" if arr.shape[2] == 4 else "RGB"
+    return Image.fromarray(arr, chanType)
+
+def make_image_grid (images, row_major=True, gutter=True):
+    """
+    Make a large image where the images are stacked.
+
+    images: list/list of list of PIL Images
+    row_major: if images is list, whether to lay them down horizontally/vertically
+    """
+    assert isinstance(images, list) and len(images) > 0, "images is either not a list or an empty list"
+    if isinstance(images[0], list) :
+        return make_image_grid([make_image_grid(row) for row in images], False)
+    else :
+        if row_major :
+            H = min(a.size[1] for a in images)
+            images = [a.resize((int(H * a.size[0] / a.size[1]), H)) for a in images]
+            W = sum(a.size[0] for a in images)
+            gutter_width = int(0.01 * W) if gutter else 0
+            W += (len(images) - 1) * gutter_width
+            img = Image.new('RGB', (W, H))
+            cSum = 0
+            for a in images :
+                img.paste(a, (cSum, 0))
+                cSum += (a.size[0] + gutter_width)
+        else :
+            W = min(a.size[0] for a in images)
+            images = [a.resize((W, int(W * a.size[1] / a.size[0]))) for a in images]
+            H = sum(a.size[1] for a in images)
+            gutter_width = int(0.01 * W) if gutter else 0
+            H += (len(images) - 1) * gutter_width
+            img = Image.new('RGB', (W, H))
+            cSum = 0
+            for a in images :
+                img.paste(a, (0, cSum))
+                cSum += (a.size[1] + gutter_width)
+        return img
+
+def fix_normal_and_tangent_map (n, t) : 
+    """ 
+    n and t are numpy arrays that are in the color mode. 
+    [H, W, 3]
+
+    Here we convert them into vectors and make sure that their
+    norm is one and they are orthogonal
+    """ 
+    H, W, C = n.shape
+    
+    n = n / 255.0
+    t = t / 255.0 
+
+    n = (n * 2) - 1.0
+    t = (t * 2) - 1.0
+
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+
+    t = t - (n * t).sum(axis=2, keepdims=True) * n # gram schmidt
+
+    t /= np.linalg.norm(t, axis=2).reshape((H, W, 1))
+
+    return n, t
+
+def save_map_to_img (m, path='img.png')  :
+    A = (m + 1) / 2
+    Image.fromarray((A * 255.0).astype(np.uint8)).save(path)
 
 def half_vec (wi, wo) : 
     return (wi + wo) / dr.norm(wi + wo)
@@ -78,6 +152,10 @@ def make_checker_board_texture (size, checker_size, colorA=(1, 0, 0,), colorB=(0
     img[mask] = colorA
     img[~mask]= colorB
     return img
+
+def rotate_s_mat (s_mat, normal, tangent) : 
+    R = mi.Matrix3f(dr.cross(normal, tangent), tangent, normal)
+    return dr.transpose(R) @ s_mat @ R
 
 if __name__ == "__main__" : 
     # TODO: Plot and verify the distribution functions from the original SGGX microflake paper

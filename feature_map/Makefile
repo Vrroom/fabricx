@@ -1,15 +1,15 @@
 # calls:
 CC         = g++
-CFLAGS     = -c -O3 
-LDFLAGS    = 
+CFLAGS     = -c -O3 -fopenmp
+LDFLAGS    = -fopenmp
 EXECUTABLE = main
 
-SOURCES    = main.cpp 
+SOURCES    = main.cpp
 OBJECTS    = $(SOURCES:.cpp=.o)
 
 all: $(SOURCES) $(EXECUTABLE)
-	
-$(EXECUTABLE): $(OBJECTS) 
+    
+$(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 .cpp.o:
@@ -17,3 +17,4 @@ $(EXECUTABLE): $(OBJECTS)
 
 clean:
 	rm -f *.o main
+

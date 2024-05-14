@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <omp.h>
 #include <set>
 #include <utility>
 #include <cstdlib>
@@ -20,6 +21,7 @@ int WINDOW_WIDTH = 1024;
 int WINDOW_HEIGHT = 1024;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
+int N_TILE = 1;
 
 double R = 10; 
 double PHI = M_PI / 3;
@@ -68,7 +70,27 @@ FilamentMap readFilamentMap(const string& filePath) {
   }
 
   file.close();
-  return fil_map;
+  // now tile it
+  FilamentMap final_map; 
+  
+  // naive tiling
+  for (int i = 0; i < N_TILE; i++) 
+    for (int j = 0; j < N_TILE; j++) {
+      VEC3 new_o((i + 0.0), (j + 0.0), 0.0); 
+      for (int k = 0; k < fil_map.size(); k++) {
+        Filament2D fil = fil_map[k];
+        fil.rect.o += new_o;
+        final_map.push_back(fil);
+      }
+    }
+
+  // scale everything down
+  for (int i = 0; i < final_map.size(); i++) {
+    final_map[i].rect.o /= N_TILE;
+    final_map[i].rect.s1 /= N_TILE;
+    final_map[i].rect.s2 /= N_TILE;
+  }
+  return final_map;
 }
 
 enum FeatureMapType {
@@ -131,6 +153,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   const int totalCells = xRes * yRes;
 
   // compute image plane
+  #pragma omp parallel for collapse(2)
   for (int y = 0; y < yRes; y++) { 
     for (int x = 0; x < xRes; x++) 
     {
@@ -293,6 +316,7 @@ int main(int argc, char* argv[]) {
     ("s,num-sweep-points", "Number of points on sweep curve", cxxopts::value<int>()->default_value(std::to_string(NUM_SWEEP_POINTS)))
     ("r,radius", "Radius of curvature", cxxopts::value<double>()->default_value(std::to_string(R)))
     ("phi,twisting-angle", "Twisting angle in radians", cxxopts::value<double>()->default_value(std::to_string(PHI)))
+    ("n,num-tiles", "Number of tiles to make using the Filament map", cxxopts::value<int>()->default_value(std::to_string(N_TILE)))
     ("f,file-path", "File path for input/output", cxxopts::value<string>(file_path))
     ("help", "Print help");
 
@@ -309,6 +333,7 @@ int main(int argc, char* argv[]) {
   NUM_SWEEP_POINTS = result["num-sweep-points"].as<int>();
   R = result["radius"].as<double>();
   PHI = result["twisting-angle"].as<double>();
+  N_TILE = result["num-tiles"].as<int>();
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 
