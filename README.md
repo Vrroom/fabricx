@@ -2,6 +2,14 @@
 
 This is a working collection of tools to model the appearance of fabrics. Most of the code is based on Mitsuba and we occasionally use Blender to visualize things.
 
+## Gallery 
+
+![fine_cloth](https://github.com/Vrroom/fabricx/assets/7254326/b84afd55-b026-4f83-b63d-0b53ed1e2567)
+![table_cloth](https://github.com/Vrroom/fabricx/assets/7254326/61d5e9ff-b20c-4149-8531-c428b5d7e4c9)
+![rose_cloth](https://github.com/Vrroom/fabricx/assets/7254326/48126913-3790-4944-8793-ac7dc5ac5f21)
+![blue_red](https://github.com/Vrroom/fabricx/assets/7254326/601bdd56-9d7c-41da-943d-b93498333829)
+
+
 ## SpongeCake 
 
 SpongeCake (see citation below) is a popular BSDF that has been used a lot for cloth. I have a work-in-progress implementation in `spongecake_bsdf.py`. 
