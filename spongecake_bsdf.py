@@ -165,9 +165,14 @@ class SpongeCake (mi.BSDF) :
 
         self.pcg = mi.PCG32()
 
+
+        # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
+        texture_file = props['texture']
+        normal_map_file = props['normal_map']
+        tangent_map_file = props['tangent_map']
+
         normal_map_file = normal_map if normal_map is not None else props['normal_map']
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
-        texture_file = props['texture']
         texture_file = texture if texture is not None else props['texture']
 
         nm = np.array(Image.open(normal_map_file))

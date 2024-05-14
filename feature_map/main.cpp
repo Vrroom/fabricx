@@ -131,7 +131,7 @@ VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangent
     if (type == 0) 
       return VEC3(1.0, 0.0, 0.0); 
     else 
-      return VEC3(0.0, 0.0, 1.0); 
+      return VEC3(0.0, 0.0, 0.0); 
   } else if (map_type == NORMAL_MAP) { 
     VEC3 pt = normalized((normals[i] + normals[j] + normals[k]) / 3.0);
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
