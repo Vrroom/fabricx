@@ -167,6 +167,7 @@ class SpongeCake (mi.BSDF) :
 
         normal_map_file = normal_map if normal_map is not None else props['normal_map']
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
+        texture_file = props['texture']
         texture_file = texture if texture is not None else props['texture']
 
         nm = np.array(Image.open(normal_map_file))

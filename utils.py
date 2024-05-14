@@ -24,7 +24,7 @@ def make_image_grid (images, row_major=True, gutter=True):
     """
     assert isinstance(images, list) and len(images) > 0, "images is either not a list or an empty list"
     if isinstance(images[0], list) :
-        return make_image_grid([make_image_grid(row) for row in images], False)
+        return make_image_grid([make_image_grid(row, gutter=gutter) for row in images], False, gutter=gutter)
     else :
         if row_major :
             H = min(a.size[1] for a in images)
