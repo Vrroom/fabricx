@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <map>
 #include <omp.h>
 #include <set>
 #include <utility>
@@ -27,6 +28,10 @@ double R = 10;
 double PHI = M_PI / 3;
 double EPSILON = 1e-3;
 
+typedef VEC3 Color;
+
+vector<Color> COLORS;
+
 typedef pair<int, int> P; 
 
 struct Filament2D {
@@ -38,6 +43,30 @@ struct Filament2D {
 typedef vector<Filament2D> FilamentMap; 
 
 FilamentMap readFilamentMap(const string& filePath) {
+  /** 
+   * Filament map is a special .fil file. It specifies a series of
+   * rectangles and a type. Together, a rectangle and a type specify a 
+   * thread filament.
+   *
+   * The type is simply a natural number with even type represeting horizontal
+   * weft threads and odd type specifying vertical warp threads.
+   *
+   * Here is a few lines from satin.fil
+   *
+   *   0.0 0.0 0.20 0.10 0
+   *   0 0.1 0.20 0.90 1
+   *   0.2 0.0 0.20 0.40 1
+   *   0.2 0.4 0.20 0.1 0
+   *
+   * The rectangle coordinates are such that the filament map sits in a [0, 1] by [0, 1]
+   * rectangle. 
+   *
+   * Finally, there may be a few lines at the end of the form
+   *   
+   *   R G B type
+   *
+   * These are used to specify the colors of the threads
+   */ 
   FilamentMap fil_map;
   ifstream file(filePath);
 
@@ -47,26 +76,40 @@ FilamentMap readFilamentMap(const string& filePath) {
   }
 
   string line;
+  map<int, Color> type_to_color;
   while (getline(file, line)) { 
     if (line.empty() || line[0] == '#') {
       continue;
     }
 
-    stringstream ss(line);
-    double x, y, width, height;
-    int type;
-    if (ss >> x >> y >> width >> height >> type) {
-      Rectangle r(
-        VEC3(x - EPSILON, y - EPSILON, 0.0), 
-        VEC3(1.0, 0.0, 0.0), 
-        VEC3(0.0, 1.0, 0.0),
-        width + 2 * EPSILON,
-        height + 2 * EPSILON
-      );
-      fil_map.push_back(Filament2D(r, type));
-    } else {
-      std::cerr << "Error parsing line: " << line << std::endl;
+    {
+      stringstream ss(line);
+      double x, y, width, height;
+      int type;
+      if (ss >> x >> y >> width >> height >> type) {
+        Rectangle r(
+          VEC3(x - EPSILON, y - EPSILON, 0.0), 
+          VEC3(1.0, 0.0, 0.0), 
+          VEC3(0.0, 1.0, 0.0),
+          width + 2 * EPSILON,
+          height + 2 * EPSILON
+        );
+        fil_map.push_back(Filament2D(r, type));
+        continue;
+      }
     }
+
+    {
+      stringstream ss(line);
+      int R, G, B, type;
+      if (ss >> R >> G >> B >> type) {
+        type_to_color[type] = Color(R,G,B) / 255.;
+      }
+    }
+  }
+
+  for (int type = 0; type < type_to_color.size(); type++) {
+    COLORS.push_back(type_to_color[type]); 
   }
 
   file.close();
@@ -128,10 +171,10 @@ void rayColor(Ray &ray, VEC3& pixelColor) {
 
 VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangents, int type, FeatureMapType map_type) { 
   if (map_type == ID_MAP) { 
-    if (type == 0) 
-      return VEC3(1.0, 0.0, 0.0); 
-    else 
-      return VEC3(0.0, 0.0, 0.0); 
+    if (type >= COLORS.size()) {
+      return (type % 2 == 0) ? VEC3(1, 0, 0) : VEC3(0, 0, 0); 
+    }
+    return COLORS[type];
   } else if (map_type == NORMAL_MAP) { 
     VEC3 pt = normalized((normals[i] + normals[j] + normals[k]) / 3.0);
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
