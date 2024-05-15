@@ -269,7 +269,7 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
     double a = fil.rect.s2 / 2;
     double tan_theta = w / (2.0 * R); 
     double u_max = atan(tan_theta); 
-    for (int i = 0; i < NUM_PROFILE_POINTS; i++) {
+    for (int i = 0; i <= NUM_PROFILE_POINTS; i++) {
       double u = -u_max + (2.0 * u_max) * (i + 0.0) / (NUM_PROFILE_POINTS + 0.0); 
       VEC3 x_0(fil.rect.o[1] + a, fil.rect.o[0] + w/2 + R * sin(u), R * cos(u) - R);
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
@@ -294,7 +294,7 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
     double a = fil.rect.s1 / 2;
     double tan_theta = w / (2.0 * R); 
     double u_max = atan(tan_theta); 
-    for (int i = 0; i < NUM_PROFILE_POINTS; i++) {
+    for (int i = 0; i <= NUM_PROFILE_POINTS; i++) {
       double u = -u_max + (2.0 * u_max) * (i + 0.0) / (NUM_PROFILE_POINTS + 0.0); 
       VEC3 x_0(R * sin(u) + w/2 + fil.rect.o[1], a + fil.rect.o[0], R * cos(u) - R);
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
@@ -314,7 +314,7 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       }
     }
   }
-  for (int i = 0; i < NUM_PROFILE_POINTS - 1; i++) {
+  for (int i = 0; i <= NUM_PROFILE_POINTS - 1; i++) {
     for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
       int l = i * NUM_SWEEP_POINTS + j; 
       int m = i * NUM_SWEEP_POINTS + (j + 1) % NUM_SWEEP_POINTS; 
