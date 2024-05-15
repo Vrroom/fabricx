@@ -39,6 +39,13 @@ Please compare with the following from Jin et al.
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/2a69877f-b382-429a-bc9f-8fbbf88b4913)
 
+## Effect of Twisting Angle: 
+
+| `phi` (degrees) |  Tangent Map |
+|-----------------|--------------|
+|  0              |![img_2](https://github.com/Vrroom/fabricx/assets/7254326/0a1c3fa4-e1c8-434d-ad55-c8d30823c1b8)|
+|  60             |![img_1](https://github.com/Vrroom/fabricx/assets/7254326/51c13768-afb6-4edf-bf77-b688ae5ac17c)|
+
 ## References
 
 ```
