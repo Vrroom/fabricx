@@ -19,6 +19,7 @@ if __name__ == "__main__" :
     parser.add_argument('--texture', type=str, default=None, help='Texture file')
     parser.add_argument('--normal_map', type=str, default=None, help='Normal map file')
     parser.add_argument('--tangent_map', type=str, default=None, help='Tangent map file')
+    parser.add_argument('--perturb_specular', action='store_true', help='Whether to randomly perturb specular weight')
     # output path
     parser.add_argument('--save_to', type=str, default='img.png', help='Where to save the result to')
 
@@ -48,7 +49,7 @@ if __name__ == "__main__" :
     mi.register_bsdf('disney_principled_bsdf', lambda props : DisneyPrincipledBSDF(props))
     mi.register_bsdf('solid_texture_bsdf', lambda props : SolidTextureBSDF(props))
     mi.register_bsdf('spongecake_bsdf', lambda props: cls_name(props, \
-        normal_map=args.normal_map, tangent_map=args.tangent_map, texture=args.texture))
+        normal_map=args.normal_map, tangent_map=args.tangent_map, texture=args.texture, perturb_specular=args.perturb_specular))
 
     scene = mi.load_file(args.scene)
 
