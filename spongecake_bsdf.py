@@ -24,7 +24,7 @@ def shadow_masking_term_reflect (wi, wo, cos_theta_i, cos_theta_o, optical_depth
     gamma_wi = sigma_wi / cos_theta_i
     gamma_wo = sigma_wo / cos_theta_o
 
-    return (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo))) / (gamma_wi + gamma_wo)
+    return (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo + 1e-8))) / (gamma_wi + gamma_wo + 1e-8)
 
 def shadow_masking_term_transmit (wi, wo, cos_theta_i, cos_theta_o, optical_depth, s_mat): 
     # TODO: Check offline whether these terms are sensible
@@ -38,7 +38,7 @@ def shadow_masking_term_transmit (wi, wo, cos_theta_i, cos_theta_o, optical_dept
     gamma_wo = sigma_wo / cos_theta_o
 
     extra_term = dr.exp(optical_depth * gamma_wo)
-    original_term = (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo))) / (gamma_wi + gamma_wo)
+    original_term = (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo + 1e-8))) / (gamma_wi + gamma_wo + 1e-8)
 
     return original_term * extra_term
 
@@ -156,7 +156,8 @@ class SimpleSpongeCake (mi.BSDF) :
 
 class SpongeCake (mi.BSDF) : 
 
-    def __init__ (self, props, *args, texture=None, normal_map=None, tangent_map=None, perturb_specular=False) : 
+    def __init__ (self, props, *args, texture=None, normal_map=None, 
+            tangent_map=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
@@ -165,12 +166,14 @@ class SpongeCake (mi.BSDF) :
 
         reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
-        self.m_components = [reflection_flags, transmission_flags]
-        self.m_flags = reflection_flags | transmission_flags
+        delta_transmission_flags = mi.BSDFFlags.DeltaTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        self.m_components = [reflection_flags, transmission_flags, delta_transmission_flags]
+        self.m_flags = reflection_flags | transmission_flags | delta_transmission_flags
 
         self.pcg = mi.PCG32()
 
         self.perturb_specular = mi.Bool(perturb_specular)
+        self.delta_transmission = mi.Bool(delta_transmission)
 
         # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
         texture_file = props['texture']
@@ -181,14 +184,19 @@ class SpongeCake (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        nm = np.array(Image.open(normal_map_file))
-        tm = np.array(Image.open(tangent_map_file))
+        nm = np.array(Image.open(normal_map_file).convert('RGB'))
+        tm = np.array(Image.open(tangent_map_file).convert('RGB'))
 
         nm, tm = fix_normal_and_tangent_map(nm, tm)
 
         self.normal_map = mi.Texture2f(mi.TensorXf(nm))
         self.tangent_map = mi.Texture2f(mi.TensorXf(tm))
-        self.texture = mi.Texture2f(mi.TensorXf(np.array(Image.open(texture_file)) / 255.))
+
+        texture_map = np.array(Image.open(texture_file)) / 255.
+        self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
+        delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
+        # 0 means transmit, 1 means go through
+        self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
 
     def sample (self, ctx, si, sample1, sample2, active) : 
         """ 
@@ -218,6 +226,9 @@ class SpongeCake (mi.BSDF) :
 
         normal = mi.Vector3f(self.normal_map.eval(si.uv))
         tangent = mi.Vector3f(self.tangent_map.eval(si.uv))
+
+        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(si.uv))
+        selected_dt = sample1 > delta_transmission.x
         
         normal = normal / dr.norm(normal)
         tangent= tangent / dr.norm(tangent)
@@ -232,11 +243,18 @@ class SpongeCake (mi.BSDF) :
 
         h, D, wo, pdf = sample_specular(sample2, si.wi, S)
         h_, D_, wo_, pdf_ = sample_diffuse(self.pcg, sample2, si.wi, S)
+        h_dt, D_dt, wo_dt, pdf_dt = mi.Vector3f(0,0,1), 1.0, -si.wi, 1.0
 
         h = dr.select(specular_or_diffuse, h, h_)
         D = dr.select(specular_or_diffuse, D, D_)
         wo = dr.select(specular_or_diffuse, wo, wo_)
         pdf = dr.select(specular_or_diffuse, pdf, pdf_)
+
+        # delta transmission
+        h = dr.select(selected_dt, h_dt, h)
+        D = dr.select(selected_dt, D_dt, D)
+        wo = dr.select(selected_dt, wo_dt, wo)
+        pdf = dr.select(selected_dt, pdf_dt, pdf)
 
         color = mi.Color3f(self.texture.eval(si.uv)) 
         F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
@@ -253,8 +271,12 @@ class SpongeCake (mi.BSDF) :
 
         bs.wo = wo
         bs.eta = 1.
-        bs.sampled_component = dr.select(selected_r, mi.UInt32(0), mi.UInt32(1))
-        bs.sampled_type = dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission))
+        bs.sampled_component = dr.select(selected_dt, 
+            mi.UInt32(2), 
+            dr.select(selected_r, mi.UInt32(0), mi.UInt32(1)))
+        bs.sampled_type = dr.select(selected_dt, 
+            mi.UInt32(+mi.BSDFFlags.DeltaTransmission),
+            dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) 
@@ -266,6 +288,7 @@ class SpongeCake (mi.BSDF) :
         perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
         weight = (f_sponge_cake / bs.pdf) * perturb_weight
+        weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
             

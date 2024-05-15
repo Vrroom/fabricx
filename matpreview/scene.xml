@@ -110,6 +110,9 @@
       <float name="alpha" value="0.1"/>
       <float name="optical_depth" value="3"/>
       <boolean name="surface_or_fiber" value="False" />
+      <string name="texture" value="cloth/id_map.ppm" />
+      <string name="normal_map" value="cloth/normal_map.ppm" />
+      <string name="tangent_map" value="cloth/tangent_map.ppm" />
     </bsdf>
         
     <!-- <bsdf type="principled" id="bsdf-matpreview">
