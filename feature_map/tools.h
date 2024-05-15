@@ -29,6 +29,10 @@ Real random_real () {
   return (rand() + 0.0) / (RAND_MAX + 0.0); 
 }
 
+VEC4 to_hom (VEC3 x) {
+  return VEC4(x[0], x[1], x[2], 1.0);
+}
+
 VEC3 get_barycentric_coordinates (VEC3 a, VEC3 b, VEC3 c, VEC3 x) { 
   // equations copied from Shirley and Marschner ...
   auto n = (b - a).cross(c - a); 

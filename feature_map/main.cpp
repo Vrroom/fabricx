@@ -28,6 +28,8 @@ double R = 10;
 double PHI = M_PI / 3;
 double EPSILON = 1e-3;
 
+bool DELTA_TRANSMISSION = false;
+
 typedef VEC3 Color;
 
 vector<Color> COLORS;
@@ -158,7 +160,7 @@ LBVH scene;
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
-void rayColor(Ray &ray, VEC3& pixelColor) {
+void rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
   pixelColor = VEC3(0.0, 0.0, 0.0);
   // look for intersection with scene
   Real tMinFound = INF;
@@ -166,6 +168,8 @@ void rayColor(Ray &ray, VEC3& pixelColor) {
   if (pId >= 0) {
     Primitive *prim = scene.scene[pId];
     pixelColor = prim->get_color(); 
+  } else {
+    intersected = false;
   }
 }
 
@@ -201,22 +205,24 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     for (int x = 0; x < xRes; x++) 
     {
       // get the color
-      VEC3 color(0.0, 0.0, 0.0);
+      VEC4 color(0.0, 0.0, 0.0, 0.0);
       vector<Ray> rays; 
       cam.get_primary_rays_for_pixel(x, y, xRes, yRes, rays); 
       for (auto r: rays) {
         VEC3 rColor;
-        rayColor(r, rColor);
-        color += rColor; 
+        bool intersected = true;
+        rayColor(r, rColor, intersected);
+        if (intersected || !DELTA_TRANSMISSION) 
+          color += to_hom(rColor); 
       }
       color = color * (1.0 / ((Real) rays.size())); 
 
       // set, in final image
-      im.set_color(x, y, color); 
+      im.set_color_4(x, y, color); 
     }
   }
   // detect whether there are some degenerate pixels 
-  if (map_type == NORMAL_MAP || map_type == TANGENT_MAP) { 
+  if ((map_type == NORMAL_MAP || map_type == TANGENT_MAP) && !DELTA_TRANSMISSION) { 
     set<P> degenerate; 
     for (int y = 0; y < yRes; y++) {
       for (int x = 0; x < xRes; x++) {
@@ -251,13 +257,13 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     }
   }
   // Fix them.
-  writePPM(filename, im);
+  writePNG(filename, im);
 
 }
 
 void placeFilament (Filament2D &fil, FeatureMapType map_type) { 
   vector<VEC3> vertices, tangents, normals; 
-  if (fil.type == 0) {
+  if ((fil.type % 2) == 0) {
     // horizontal segment such as the one we are building now
     double w = fil.rect.s1;
     double a = fil.rect.s2 / 2;
@@ -337,6 +343,7 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
 }
 
 void build (FilamentMap &fil_map, FeatureMapType map_type) {
+  R = R / N_TILE;
   scene.clear();
   for (auto &f: fil_map) 
     placeFilament(f, map_type); 
@@ -361,6 +368,7 @@ int main(int argc, char* argv[]) {
     ("phi,twisting-angle", "Twisting angle in radians", cxxopts::value<double>()->default_value(std::to_string(PHI)))
     ("n,num-tiles", "Number of tiles to make using the Filament map", cxxopts::value<int>()->default_value(std::to_string(N_TILE)))
     ("f,file-path", "File path for input/output", cxxopts::value<string>(file_path))
+    ("d,delta-transmission", "Delta transmission", cxxopts::value<bool>()->default_value(std::to_string(DELTA_TRANSMISSION)))
     ("help", "Print help");
 
   auto result = options.parse(argc, argv);
@@ -377,11 +385,12 @@ int main(int argc, char* argv[]) {
   R = result["radius"].as<double>();
   PHI = result["twisting-angle"].as<double>();
   N_TILE = result["num-tiles"].as<int>();
+  DELTA_TRANSMISSION = result["delta-transmission"].as<bool>();
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 
   vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
-  vector<string> names = { "normal_map.ppm", "tangent_map.ppm", "id_map.ppm" }; 
+  vector<string> names = { "normal_map.png", "tangent_map.png", "id_map.png" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }
