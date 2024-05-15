@@ -4,6 +4,11 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 ## Gallery 
 
+**Update**: Added the BRDF from _Woven Fabric Capture From a Single Photo_ by Jin et al. 
+
+![red_shimmer](https://github.com/Vrroom/fabricx/assets/7254326/51bf2e98-701a-4551-b506-772273869d72)
+![shimmer_gold](https://github.com/Vrroom/fabricx/assets/7254326/0b37ab15-6947-4491-a5e7-2bde4bc358af)
+
 **Update**: We can do Delta Transmission also now!!
 
 ![gold_delta_transmission](https://github.com/Vrroom/fabricx/assets/7254326/33b3e929-717d-464b-898a-6352b7b5bacd)
