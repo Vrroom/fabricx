@@ -74,6 +74,11 @@ class SimpleSpongeCake (mi.BSDF) :
         self.m_components = [reflection_flags, transmission_flags]
         self.m_flags = reflection_flags | transmission_flags
 
+        # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
+        texture_file = props['texture']
+        normal_map_file = props['normal_map']
+        tangent_map_file = props['tangent_map']
+
         self.pcg = mi.PCG32()
 
     def sample (self, ctx, si, sample1, sample2, active) : 
@@ -81,8 +86,8 @@ class SimpleSpongeCake (mi.BSDF) :
 
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) # surface type matrix. Later we'll rotate it and all that.
-        # S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) # fiber type matrix. Later we'll rotate it and all that.
-        S_fibr = dr.diag(mi.Vector3f(1., 1., alpha * alpha)) # fiber type matrix. Later we'll rotate it and all that.
+        S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) # fiber type matrix. Later we'll rotate it and all that.
+        # S_fibr = dr.diag(mi.Vector3f(1., 1., alpha * alpha)) # fiber type matrix. Later we'll rotate it and all that.
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
 
@@ -151,7 +156,7 @@ class SimpleSpongeCake (mi.BSDF) :
 
 class SpongeCake (mi.BSDF) : 
 
-    def __init__ (self, props, *args, texture=None, normal_map=None, tangent_map=None) : 
+    def __init__ (self, props, *args, texture=None, normal_map=None, tangent_map=None, perturb_specular=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
@@ -165,6 +170,7 @@ class SpongeCake (mi.BSDF) :
 
         self.pcg = mi.PCG32()
 
+        self.perturb_specular = mi.Bool(perturb_specular)
 
         # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
         texture_file = props['texture']
@@ -185,8 +191,27 @@ class SpongeCake (mi.BSDF) :
         self.texture = mi.Texture2f(mi.TensorXf(np.array(Image.open(texture_file)) / 255.))
 
     def sample (self, ctx, si, sample1, sample2, active) : 
+        """ 
+        TODOs:
+        1. ---Verified that sampled h and tangent are roughly perpendicular.---
+        2. Add Delta Transmission to allow light to pass through. The code below should help. Just change the flag
+            bs.wo = -si.wi
+            bs.eta= 1
+            bs.sampled_component = mi.UInt32(1)
+            bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyTransmission)
+            bs.pdf = 1
+            weight = mi.Color3f(1.0, 1.0, 1.0)
+        3. Perturb the maps
+        4. Don't do closed form normal and tangent map. More flexible to compute it using geometry.
+        5. Increase SPP in feature maps
+        6. The fiber fuzz thing is correct because the fuzz faces the z direction. That's how that strong white light comes. By this logic, things becoming dark also make sense
+        7. Learn about LEAN and LEADR Maps
+        8. Microscopic images of threads
+        9. Jin et al also perturb the specular weight by some random variable. It might be interesting to use Musgrave texture here. Because it does look like terrain
+        10. Check differentiability
+        11. Add documentation/tutorial
+        """
         bs = mi.BSDFSample3f() 
-
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) # surface type matrix. Later we'll rotate it and all that.
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) # fiber type matrix. Later we'll rotate it and all that.
@@ -213,7 +238,6 @@ class SpongeCake (mi.BSDF) :
         wo = dr.select(specular_or_diffuse, wo, wo_)
         pdf = dr.select(specular_or_diffuse, pdf, pdf_)
 
-
         color = mi.Color3f(self.texture.eval(si.uv)) 
         F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
@@ -238,8 +262,10 @@ class SpongeCake (mi.BSDF) :
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
 
         R = dr.abs(dr.dot(bs.wo, h)) / dr.abs(cos_theta_i)
+
+        perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
-        weight = (f_sponge_cake / bs.pdf) 
+        weight = (f_sponge_cake / bs.pdf) * perturb_weight
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
             
