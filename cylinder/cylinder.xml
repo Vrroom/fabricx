@@ -1,0 +1,76 @@
+<scene version="2.1.0">
+
+<!-- Defaults, these can be set via the command line: -Darg=value -->
+
+	<default name="spp" value="4096"/>
+	<default name="resx" value="1920"/>
+	<default name="resy" value="1080"/>
+
+<!-- Camera and Rendering Parameters -->
+
+	<integrator type="path" id="elm__0" name="elm__0">
+		<integer name="max_depth" value="12"/>
+	</integrator>
+	<sensor type="perspective" id="elm__1" name="elm__1">
+		<string name="fov_axis" value="x"/>
+		<float name="fov" value="39.597755"/>
+		<float name="principal_point_offset_x" value="0.000000"/>
+		<float name="principal_point_offset_y" value="-0.000000"/>
+		<float name="near_clip" value="0.100000"/>
+		<float name="far_clip" value="100.000000"/>
+		<transform name="to_world">
+			<rotate x="1" angle="179.999991348578"/>
+			<rotate y="1" angle="-44.9999978371445"/>
+			<rotate z="1" angle="180.00000500895632"/>
+			<translate value="6.000000 0.000000 6.000000"/>
+		</transform>
+		<sampler type="independent" name="sampler">
+			<integer name="sample_count" value="$spp"/>
+		</sampler>
+		<film type="hdrfilm" name="film">
+			<integer name="width" value="$resx"/>
+			<integer name="height" value="$resy"/>
+		</film>
+	</sensor>
+
+<!-- Materials -->
+
+    <bsdf type="spongecake_bsdf" id="bsdf-matpreview">
+      <vector name="base_color" value="0.0, 1.0, 0.0"/>
+      <float name="alpha" value="0.0010"/>
+      <float name="optical_depth" value="1"/>
+      <boolean name="surface_or_fiber" value="False" />
+      <string name="texture" value="cloth/id_map.png" />
+      <string name="normal_map" value="cloth/normal_map.png" />
+      <string name="tangent_map" value="cloth/tangent_map.png" />
+      <float name="w" value="0.2" />
+    </bsdf>
+
+<!-- Emitters -->
+    <emitter type="constant">
+      <rgb name="radiance" value="0.05"/>
+    </emitter>
+
+	<shape type="rectangle" id="elm__4" name="elm__4">
+		<boolean name="flip_normals" value="true"/>
+		<transform name="to_world">
+			<matrix value="0.053033 0.000000 0.353553 5.000000 0.000000 5.000000 -0.000000 0.000000 -0.053033 0.000000 0.353553 5.000000 0.000000 0.000000 0.000000 1.000000"/>
+		</transform>
+		<emitter type="area" name="emitter">
+            <!-- <rgb value="166.666656 166.666656 166.666656" name="radiance"/> --> 
+            <rgb value="400 400 400" name="radiance"/>
+		</emitter>
+		<bsdf type="null" name="bsdf"/>
+	</shape>
+
+<!-- Shapes -->
+
+	<shape type="ply" id="elm__3" name="elm__3">
+		<string name="filename" value="meshes/Cylinder.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="bsdf-matpreview" name="bsdf"/>
+	</shape>
+
+<!-- Volumes -->
+
+</scene>
