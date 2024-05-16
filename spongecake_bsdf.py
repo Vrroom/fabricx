@@ -128,6 +128,7 @@ class SimpleSpongeCake (mi.BSDF) :
 
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) 
 
+
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
 
         weight = (f_sponge_cake / bs.pdf) 
@@ -216,17 +217,19 @@ class SpongeCake (mi.BSDF) :
         3. Perturb the maps
         4. Don't do closed form normal and tangent map. More flexible to compute it using geometry.
         5. Increase SPP in feature maps
-        6. The fiber fuzz thing is correct because the fuzz faces the z direction. That's how that strong white light comes. By this logic, things becoming dark also make sense
+        6. ---The fiber fuzz thing is correct because the fuzz faces the z direction. That's how that strong white light comes. By this logic, things becoming dark also make sense---
         7. Learn about LEAN and LEADR Maps
         8. Microscopic images of threads
         9. Jin et al also perturb the specular weight by some random variable. It might be interesting to use Musgrave texture here. Because it does look like terrain
         10. Check differentiability
         11. Add documentation/tutorial
+        12. Read Weiqi Shi's paper
+        13. Verify that I'm correctly combining lobes
         """
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
-        S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) # surface type matrix. Later we'll rotate it and all that.
-        S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) # fiber type matrix. Later we'll rotate it and all that.
+        S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
+        S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) 
 
         normal = mi.Vector3f(self.normal_map.eval(si.uv))
         tangent = mi.Vector3f(self.tangent_map.eval(si.uv))
@@ -293,7 +296,7 @@ class SpongeCake (mi.BSDF) :
         weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
-            
+
         return (bs, weight)
 
     def eval(self, ctx, si, wo, active):
@@ -425,9 +428,9 @@ class JinSpongeCake (mi.BSDF) :
 
         active = active & dr.neq(cos_theta_i, 0.0) & \
                 dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) & dr.neq(pdf, 0.0) & \
-                (~specular_or_diffuse & dr.neq(dr.dot(si.wi, normal), 0)) # if we chose the diffuse component,
-                                                                          # please don't let the normal and si.wi
-                                                                          # be parallel.
+                (specular_or_diffuse | dr.neq(dr.dot(si.wi, normal), 0)) # if we chose the diffuse component,
+                                                                         # please don't let the normal and si.wi
+                                                                         # be parallel.
 
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
         
@@ -442,7 +445,6 @@ class JinSpongeCake (mi.BSDF) :
 
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
-            
         return (bs, weight)
 
     def eval(self, ctx, si, wo, active):

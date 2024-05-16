@@ -6,6 +6,19 @@ import mitsuba as mi
 from itertools import product
 import argparse
 
+def print_dict_as_table(d):
+    # Determine the maximum width of the keys and values for alignment
+    max_key_width = max(len(str(key)) for key in d.keys())
+    max_value_width = max(len(str(value)) for value in d.values())
+
+    # Print the table header
+    print(f"{'Key':<{max_key_width}} | {'Value':<{max_value_width}}")
+    print('-' * (max_key_width + max_value_width + 3))
+
+    # Print the key-value pairs
+    for key, value in d.items():
+        print(f"{str(key):<{max_key_width}} | {str(value):<{max_value_width}}")
+
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description='Let us play with cloth')
     parser.add_argument('--spp', type=int, default=512, help='Samples per pixel')
@@ -26,6 +39,8 @@ if __name__ == "__main__" :
 
     args = parser.parse_args()
     
+    print_dict_as_table(vars(args))
+
     if args.debug: 
         mi.set_variant('scalar_rgb')
         print('Note: We won\'t be able to change the scene parameters now!!')
