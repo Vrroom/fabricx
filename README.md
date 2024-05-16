@@ -4,8 +4,9 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 ## Gallery 
 
-**Up
-date**: Added Cylinder model and comparison with actual
+**Update**: Added Cylinder model and comparison with actual
+
+One of the microstructures is like 300 micron across (the black one, measured perpendicular to the highlight). 
 
 | Real | Microscope | Render |
 |------|------------|--------|
