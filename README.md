@@ -8,7 +8,7 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 | Real | Render |
 |------|--------|
-|      |![cylinder](https://github.com/Vrroom/fabricx/assets/7254326/44ea5b2f-8fd9-4cd0-8d73-2f9f61ce5cf0)|
+| ![img_thread](https://github.com/Vrroom/fabricx/assets/7254326/15d21c14-959f-4b8c-b833-d2001d6d3367) |![cylinder](https://github.com/Vrroom/fabricx/assets/7254326/44ea5b2f-8fd9-4cd0-8d73-2f9f61ce5cf0)|
 
 
 **Update**: Added the BRDF from _Woven Fabric Capture From a Single Photo_ by Jin et al. 
