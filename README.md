@@ -6,7 +6,7 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 **Update**: Added Cylinder model and comparison with actual
 
-One of the microstructures is like 300 micron across (the black one, measured perpendicular to the highlight). 
+One of the microstructures is like 300 micron across (the black one, measured perpendicular to the highlight). This is not very accurate because if we rotate warp and weft, then we don't see the same effect.
 
 | Real | Microscope | Render |
 |------|------------|--------|
