@@ -6,10 +6,11 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 **Update**: Added Cylinder model and comparison with actual
 
-| Real | Render |
-|------|--------|
-| ![img_thread](https://github.com/Vrroom/fabricx/assets/7254326/15d21c14-959f-4b8c-b833-d2001d6d3367) |![cylinder](https://github.com/Vrroom/fabricx/assets/7254326/44ea5b2f-8fd9-4cd0-8d73-2f9f61ce5cf0)|
+One of the microstructures is like 300 micron across (the black one, measured perpendicular to the highlight). This is not very accurate because if we rotate warp and weft, then we don't see the same effect.
 
+| Real | Microscope | Render |
+|------|------------|--------|
+| ![img_thread](https://github.com/Vrroom/fabricx/assets/7254326/15d21c14-959f-4b8c-b833-d2001d6d3367) |![microscope](https://github.com/Vrroom/fabricx/assets/7254326/d849dc86-77cf-4bb4-a125-337f61fc3e43) |![cylinder](https://github.com/Vrroom/fabricx/assets/7254326/dd9f48de-8926-4899-8efc-c0222630aad5) |
 
 **Update**: Added the BRDF from _Woven Fabric Capture From a Single Photo_ by Jin et al. 
 
