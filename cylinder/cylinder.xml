@@ -48,7 +48,7 @@
 
 <!-- Emitters -->
     <emitter type="constant">
-      <rgb name="radiance" value="0.05"/>
+      <rgb name="radiance" value="0.5"/>
     </emitter>
 
 	<shape type="rectangle" id="elm__4" name="elm__4">

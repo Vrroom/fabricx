@@ -99,6 +99,7 @@ def diffuse_bsdf (wi, wo, cos_theta_i, cos_theta_o, roughness, base_color, subsu
             * dr.abs(cos_theta_o)
 
     f_diffuse = ((1 - subsurface) * f_base_diffuse + subsurface * f_subsurface) 
+    #print(f_diffuse)
     return f_diffuse
 
 def metal_bsdf(wi, wo, cos_theta_i, cos_theta_o, base_color, anisotropic, roughness) :

@@ -71,16 +71,19 @@ if __name__ == "__main__" :
     scene = mi.load_file(args.scene)
 
     params = mi.traverse(scene)
-    params['bsdf-matpreview.surface_or_fiber'] = mi.Bool(not args.fiber)
-    params.update()
+    if 'bsdf-matpreview.surface_or_fiber' in params: 
+        params['bsdf-matpreview.surface_or_fiber'] = mi.Bool(not args.fiber)
+        params.update()
 
     images = []
 
     for a in args.alpha: 
         images.append([])
         for od in args.optical_depth: 
-            params['bsdf-matpreview.alpha'] = mi.Float(a)
-            params['bsdf-matpreview.optical_depth'] = mi.Float(od)
+            if 'bsdf-matpreview.alpha' in params : 
+                params['bsdf-matpreview.alpha'] = mi.Float(a)
+            if 'bsdf-matpreview.optical_depth' in params :
+                params['bsdf-matpreview.optical_depth'] = mi.Float(od)
             params.update()
             image = mi.render(scene, spp=args.spp)
             img = (image ** (1.0 / 2.2)).numpy()

@@ -722,11 +722,14 @@ struct OrthographicCamera : public Camera {
   void get_primary_rays_for_pixel (int x, int y, int xRes, int yRes, vector<Ray> &prs) {
     double dx = rect.s1 / xRes;
     double dy = rect.s2 / yRes;
-    VEC3 pt = rect.o 
-              + (rect.d1 * (((x + 0.0) / (xRes + 0.0) * rect.s1) + dx / 2.))
-              + (rect.d2 * (((y + 0.0) / (yRes + 0.0) * rect.s2) + dy / 2.));
-    Ray r(pt, rect.normal(VEC3(0,0,0))); 
-    prs.push_back(r);
+    VEC3 ap_rect_pt = rect.o 
+      + (rect.d1 * ((x + 0.0) / (xRes + 0.0) * rect.s1))
+      + (rect.d2 * ((y + 0.0) / (yRes + 0.0) * rect.s2));
+    Rectangle aperture_rect(ap_rect_pt, rect.d1, rect.d2, dx, dy);
+    vector<VEC3> points; 
+    aperture_rect.rand_stratified_samples(points, 5); 
+    for (auto &pt: points) 
+      prs.push_back(Ray(pt, rect.normal(VEC3(0,0,0))));
   }
 
 }; 

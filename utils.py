@@ -50,6 +50,13 @@ def make_image_grid (images, row_major=True, gutter=True):
                 cSum += (a.size[1] + gutter_width)
         return img
 
+def fix_map (n) : 
+    n = n.astype(float)
+    n /= 255.0
+    n = (2 * n) - 1.0
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    return n
+
 def fix_normal_and_tangent_map (n, t) : 
     """ 
     n and t are numpy arrays that are in the color mode. 

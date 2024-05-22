@@ -60,11 +60,26 @@
         <float name="eta" value="1.33" />
     </bsdf> -->
 
-    <!-- <bsdf type="disney_diffuse_bsdf" id="bsdf-matpreview">
+     <bsdf type="disney_diffuse_bsdf" id="bsdf-matpreview">
         <vector name="base_color" value="0.82, 0.67, 0.16" />
         <float name="roughness" value="0.5" />
         <float name="subsurface" value="0.5" />
-    </bsdf>  -->
+     </bsdf>
+
+      <!-- <bsdf type="principled" id="bsdf-matpreview">
+      <rgb name="base_color" value="0.82,0.67,0.16"/>
+      <float name="metallic" value="0.0" />
+      <float name="specular" value="0.0" />
+      <float name="roughness" value="0.5" />
+      <float name="spec_tint" value="0.0" />
+      <float name="anisotropic" value="0.0" />
+      <float name="sheen" value="0.0" />
+      <float name="sheen_tint" value="0.0" />
+      <float name="clearcoat" value="0.0" />
+      <float name="clearcoat_gloss" value="0.0" />
+      <float name="spec_trans" value="0.0" />
+      </bsdf>-->
+
 
     <!-- <bsdf type="disney_metal_bsdf" id="bsdf-matpreview">
         <vector name="base_color" value="0.82, 0.67, 0.16"/>
@@ -105,7 +120,7 @@
     </bsdf> -->
 
 
-    <bsdf type="spongecake_bsdf" id="bsdf-matpreview">
+    <!-- <bsdf type="spongecake_bsdf" id="bsdf-matpreview">
       <vector name="base_color" value="0.0, 1.0, 0.0"/>
       <float name="alpha" value="0.1"/>
       <float name="optical_depth" value="3"/>
@@ -113,7 +128,7 @@
       <string name="texture" value="cloth/id_map.ppm" />
       <string name="normal_map" value="cloth/normal_map.ppm" />
       <string name="tangent_map" value="cloth/tangent_map.ppm" />
-    </bsdf>
+    </bsdf> --> 
         
     <!-- <bsdf type="principled" id="bsdf-matpreview">
       <rgb name="base_color" value="0.82,0.67,0.16"/>

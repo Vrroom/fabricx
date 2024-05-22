@@ -4,6 +4,12 @@ import numpy as np
 import math
 import drjit as dr
 from utils import *
+from asg import (
+    benny_rodrigues_rot_formula_dr, 
+    spherical_to_euclidean_dr,
+    euclidean_to_spherical_dr,
+    asg_dr
+)
 
 def shadow_masking_term_reflect (wi, wo, cos_theta_i, cos_theta_o, optical_depth, s_mat) : 
     """
@@ -189,6 +195,9 @@ class SpongeCake (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('bent_normal_map.png').convert('RGB')))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('asg_params.npy')))
+
         nm = np.array(Image.open(normal_map_file).convert('RGB'))
         tm = np.array(Image.open(tangent_map_file).convert('RGB'))
 
@@ -206,30 +215,21 @@ class SpongeCake (mi.BSDF) :
     def sample (self, ctx, si, sample1, sample2, active) : 
         """ 
         TODOs:
-        1. ---Verified that sampled h and tangent are roughly perpendicular.---
-        2. ---Add Delta Transmission to allow light to pass through. The code below should help. Just change the flag---
-            bs.wo = -si.wi
-            bs.eta= 1
-            bs.sampled_component = mi.UInt32(1)
-            bs.sampled_type = mi.UInt32(+mi.BSDFFlags.GlossyTransmission)
-            bs.pdf = 1
-            weight = mi.Color3f(1.0, 1.0, 1.0)
         3. Perturb the maps
         4. Don't do closed form normal and tangent map. More flexible to compute it using geometry.
-        5. Increase SPP in feature maps
-        6. ---The fiber fuzz thing is correct because the fuzz faces the z direction. That's how that strong white light comes. By this logic, things becoming dark also make sense---
         7. Learn about LEAN and LEADR Maps
-        8. Microscopic images of threads
         9. Jin et al also perturb the specular weight by some random variable. It might be interesting to use Musgrave texture here. Because it does look like terrain
         10. Check differentiability
         11. Add documentation/tutorial
-        12. Read Weiqi Shi's paper
         13. Verify that I'm correctly combining lobes
         """
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) 
+
+        bent_normal = mi.Vector3f(self.bent_normal_map.eval(si.uv))
+        asg_params = mi.Vector3f(self.asg_params.eval(si.uv))
 
         normal = mi.Vector3f(self.normal_map.eval(si.uv))
         tangent = mi.Vector3f(self.tangent_map.eval(si.uv))
@@ -286,7 +286,15 @@ class SpongeCake (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
-        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) 
+        # EXPERIMENT WITH VISIBILITY
+        di = euclidean_to_spherical_dr(si.wi) 
+        do = euclidean_to_spherical_dr(wo) 
+        bent_normal = bent_normal / dr.norm(bent_normal)
+        mu = euclidean_to_spherical_dr(bent_normal)
+        V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+
+        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) #& (V_i > 0.5) & (V_o > 0.5)
 
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
 
@@ -467,3 +475,6 @@ class JinSpongeCake (mi.BSDF) :
 
     def to_string(self):
         return ('JinSpongeCake[]')
+
+    def needs_differentials(self) :
+        return True
