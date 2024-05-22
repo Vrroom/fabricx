@@ -1,20 +1,24 @@
-# calls:
 CC         = g++
 CFLAGS     = -c -O3 -fopenmp
 LDFLAGS    = -fopenmp
-EXECUTABLE = main
 
-SOURCES    = main.cpp
-OBJECTS    = $(SOURCES:.cpp=.o)
+MAIN_SRC   = main.cpp
+VIS_SRC    = visibility.cpp
 
-all: $(SOURCES) $(EXECUTABLE)
-    
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+MAIN_OBJ   = $(MAIN_SRC:.cpp=.o)
+VIS_OBJ    = $(VIS_SRC:.cpp=.o)
 
-.cpp.o:
+all: main visibility
+
+main: $(MAIN_OBJ)
+	$(CC) $(MAIN_OBJ) $(LDFLAGS) -o $@
+
+visibility: $(VIS_OBJ)
+	$(CC) $(VIS_OBJ) $(LDFLAGS) -o $@
+
+%.o: %.cpp
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f *.o main
+	rm -f $(MAIN_OBJ) $(VIS_OBJ) main visibility
 
