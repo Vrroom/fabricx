@@ -17,6 +17,45 @@ bpy.ops.object.modifier_apply(modifier="Subdivision")
 color_map = np.array(Image.open('color_map.jpg'))
 W = color_map.shape[1]
 
+def benny_rodrigues_rot_formula(v, k, theta) :
+    """ this is benjamin rodrigues's formula for rotating vector v 
+    around axis k (which is unit norm) by theta degrees for drjit """
+    return v * np.cos(theta) \
+        + np.cross(k, v) * np.sin(theta) \
+        + k * np.dot(k, v) * (1 - np.cos(theta))
+        
+def spherical_to_euclidean (v) : 
+    """ convert spherical coordinates to euclidean """ 
+    phi = v[0]
+    theta = v[1]
+
+    x = np.sin(phi) * np.cos(theta)
+    y = np.sin(phi) * np.sin(theta)
+    z = np.cos(phi) 
+
+    return np.array((x, y, z))
+
+def asg_distr (d_vec, mu, gamma, log_sigma_x, log_sigma_y, C) : 
+    mu_phi = mu[0]
+    mu_theta = mu[1]
+
+    # canonical x direction
+    x_cano_phi = mu_phi + (np.pi / 2)
+    x_cano_theta = mu_theta
+    x_cano = np.array((x_cano_phi, x_cano_theta))
+
+    mu_vec = spherical_to_euclidean(mu)
+    x_cano_vec = spherical_to_euclidean(x_cano)
+
+    x_vec = benny_rodrigues_rot_formula(x_cano_vec, mu_vec, gamma)
+    y_vec = np.cross(mu_vec, x_vec)
+
+    vals = C * np.clip(np.dot(mu_vec, d_vec), 0, np.inf) \
+        * np.exp(\
+            -(np.exp(log_sigma_x)) * (np.dot(d_vec, x_vec) ** 2) \
+            -(np.exp(log_sigma_y)) * (np.dot(d_vec, y_vec) ** 2))
+    return vals
+
 def sggx_pdf(wm, s_mat) : 
     det_s = np.abs(np.linalg.det(s_mat))
     den = wm.x * wm.x * (s_mat[1, 1] * s_mat[2, 2] - s_mat[1, 2] * s_mat[1, 2]) + \
@@ -29,15 +68,27 @@ def sggx_pdf(wm, s_mat) :
            / (np.pi * np.square(den))
 
 
-def solid_texture_objects(objs, texture_fn=lambda *args, **kwargs : (1.0, 0.0, 0.0, 1.0), as_emission=True, smooth=False):
+def solid_texture_objects(objs, texture_fn=lambda *args, **kwargs : (1.0, 0.0, 0.0, 1.0), 
+    as_emission=True, smooth=False, distribution='sggx'):
+        
     m, M = get_obj_bounds_list(objs)
     m = [m.x, m.y, m.z]
     M = [M.x, M.y, M.z]
-    s_mat = np.array([
-        [0.81, 0, 0],
-        [0, 0.81, 0],
-        [0, 0, 1]
-    ])
+    
+    if distribution == 'sggx': 
+        s_mat = np.array([
+            [1, 0, 0],
+            [0, 0.81, 0],
+            [0, 0, 1]
+        ])
+    else :
+        mu = np.array([0, 0])
+        gamma = np.array(-np.pi/4)
+        log_sigma_x = np.array(np.log(300))
+        log_sigma_y = np.array(np.log(3))
+        C = np.array(1)
+    
+    
     scale_factor = max([a - b for a, b in zip(M, m)])
     for obj in objs :
         mesh = obj.data
@@ -50,8 +101,12 @@ def solid_texture_objects(objs, texture_fn=lambda *args, **kwargs : (1.0, 0.0, 0
                 vertex_index = mesh.loops[idx].vertex_index
                 vertex = mesh.vertices[vertex_index]
                 px = obj.matrix_world @ vertex.co
-
-                pdf = sggx_pdf(px, s_mat)
+                
+                if distribution == 'sggx' : 
+                    pdf = sggx_pdf(px, s_mat)
+                else :
+                    pdf = asg_distr(np.array((px.x, px.y, px.z)), mu, gamma, log_sigma_x, log_sigma_y, C)
+                    
                 pdfs.append(pdf)
                 
         m = np.min(pdfs)
@@ -61,7 +116,13 @@ def solid_texture_objects(objs, texture_fn=lambda *args, **kwargs : (1.0, 0.0, 0
                 vertex_index = mesh.loops[idx].vertex_index
                 vertex = mesh.vertices[vertex_index]
                 px = obj.matrix_world @ vertex.co
-                pdf = (sggx_pdf(px, s_mat) - m) / (M - m)
+                
+                if distribution == 'sggx' : 
+                    val = sggx_pdf(px, s_mat)
+                else :
+                    val = asg_distr(np.array((px.x, px.y, px.z)), mu, gamma, log_sigma_x, log_sigma_y, C)
+                    
+                pdf = (val - m) / (M - m)
                 cmap_id = min(int(pdf * W), W - 1)
                 color = color_map[0, cmap_id] / 255.
                 color_layer.data[idx].color = [color[0], color[1], color[2], 1.0]
@@ -70,4 +131,4 @@ def solid_texture_objects(objs, texture_fn=lambda *args, **kwargs : (1.0, 0.0, 0
         if smooth :
             shade_smooth(obj)
             
-solid_texture_objects([bpy.context.object])
+solid_texture_objects([bpy.context.object], distribution='asg')
