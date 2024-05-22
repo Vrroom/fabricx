@@ -2,6 +2,43 @@
 
 This is a working collection of tools to model the appearance of fabrics. Most of the code is based on Mitsuba and we occasionally use Blender to visualize things.
 
+## Visibility
+
+We fit ASGs to the per point visibility function and discarded light paths that reached an invisible region. This experiment is a bit hacky and needs to be improved. 
+
+![image](https://github.com/Vrroom/fabricx/assets/7254326/689419a3-53d7-4107-90bc-3fa040e9529b)
+
+```
+@article{wu2011physically,
+  title={Physically-based interactive bi-scale material design},
+  author={Wu, Hongzhi and Dorsey, Julie and Rushmeier, Holly},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={30},
+  number={6},
+  pages={1--10},
+  year={2011},
+  publisher={ACM New York, NY, USA}
+}
+```
+```
+@article{jimenez2016practical,
+  title={Practical real-time strategies for accurate indirect occlusion},
+  author={Jim{\'e}nez, Jorge and Wu, Xianchun and Pesce, Angelo and Jarabo, Adrian},
+  journal={SIGGRAPH 2016 Courses: Physically Based Shading in Theory and Practice},
+  year={2016}
+}
+```
+```
+@inproceedings{zhu2023realistic,
+  title={A Realistic Surface-based Cloth Rendering Model},
+  author={Zhu, Junqiu and Jarabo, Adrian and Aliaga, Carlos and Yan, Ling-Qi and Chiang, Matt Jen-Yuan},
+  booktitle={ACM SIGGRAPH 2023 Conference Proceedings},
+  pages={1--9},
+  year={2023}
+}
+```
+
+
 ## Gallery 
 
 **Update**: Added Cylinder model and comparison with actual
