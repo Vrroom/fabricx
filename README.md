@@ -78,8 +78,6 @@ Here, we show our implementation of the SGGX distribution function and contrast 
 |---------|-------|
 |![surface](https://github.com/Vrroom/fabricx/assets/7254326/55e72bd2-8182-4b82-88c3-08aac8337a9a) | ![fiber](https://github.com/Vrroom/fabricx/assets/7254326/28bd250b-1e3f-4f39-b632-d92a505b7d6f) |
 
-
-
 Original:
 
 ![image](https://github.com/Vrroom/fabricx/assets/7254326/48f2f9ff-0db8-4f07-9260-71dc1d0d0cf0)
@@ -95,6 +93,29 @@ Note that we get the same bands around the equator for `fiber` and peaks at the 
   number={4},
   pages={1--11},
   year={2015},
+  publisher={ACM New York, NY, USA}
+}
+```
+
+## ASG
+
+We also have an implementation of the Anisotropic Spherical Gaussians which we use to fit the visibility function. Compare our implementation with the original paper below. LGTM!
+
+| A | B | C |
+|---|---|---|
+|![asg_2](https://github.com/Vrroom/fabricx/assets/7254326/3d91c5ac-229d-422a-b34e-21dc055abdd0)|![asg_3](https://github.com/Vrroom/fabricx/assets/7254326/4efa1ecc-69d6-434f-9b66-23b259b8bc49)|![asg_4](https://github.com/Vrroom/fabricx/assets/7254326/e5f56111-ed18-4b22-99a0-878f9a4699bf)|
+
+![image](https://github.com/Vrroom/fabricx/assets/7254326/aebc3483-0e6b-4a3a-aef7-2702e25b2377)
+
+```
+@article{xu2013anisotropic,
+  title={Anisotropic spherical gaussians},
+  author={Xu, Kun and Sun, Wei-Lun and Dong, Zhao and Zhao, Dan-Yong and Wu, Run-Dong and Hu, Shi-Min},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={32},
+  number={6},
+  pages={1--11},
+  year={2013},
   publisher={ACM New York, NY, USA}
 }
 ```
