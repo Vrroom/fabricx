@@ -173,17 +173,19 @@ void rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
   }
 }
 
-VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangents, int type, FeatureMapType map_type) { 
+VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, vector<VEC3> &tangents, int type, FeatureMapType map_type) { 
   if (map_type == ID_MAP) { 
     if (type >= COLORS.size()) {
       return (type % 2 == 0) ? VEC3(1, 0, 0) : VEC3(0, 0, 0); 
     }
     return COLORS[type];
   } else if (map_type == NORMAL_MAP) { 
-    VEC3 pt = normalized((normals[i] + normals[j] + normals[k]) / 3.0);
+    VEC3 pt = t->normal(VEC3(0,0,0));
+    pt = pt * sign(pt.dot(VEC3(0, 0, 1))); 
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
   } else if (map_type == TANGENT_MAP) {
-    VEC3 pt = normalized((tangents[i] + tangents[j] + tangents[k]) / 3.0);
+    // VEC3 pt = normalized((tangents[i] + tangents[j] + tangents[k]) / 3.0);
+    VEC3 pt = tangent_dir;
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
   } else {
     return VEC3(0.0, 0.0, 1.0);
@@ -218,7 +220,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       color = color * (1.0 / ((Real) rays.size())); 
 
       // set, in final image
-      im.set_color_4(x, y, color); 
+      im.set_color_4(y, x, color); 
     }
   }
   // detect whether there are some degenerate pixels 
@@ -244,7 +246,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
             VEC3 color = im.get_color(x_, y_); 
             VEC3 vec = color * 2.0 - VEC3(1.0, 1.0, 1.0);
             if (abs(norm(vec) - 1.0) <= 1e-2) {
-              im.set_color(x, y, color);
+              im.set_color(y, x, color);
               found = true;
             }
           }
@@ -262,9 +264,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
 }
 
 void placeFilament (Filament2D &fil, FeatureMapType map_type) { 
-  vector<VEC3> vertices, tangents, normals; 
-  if ((fil.type % 2) == 0) {
-    // horizontal segment such as the one we are building now
+  vector<VEC3> vertices, tangents; 
+  if ((fil.type % 2) == 1) {
     double w = fil.rect.s1;
     double a = fil.rect.s2 / 2;
     double tan_theta = w / (2.0 * R); 
@@ -286,7 +287,6 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
         );
         vertices.push_back(x_0 + a * n); 
         tangents.push_back(VEC3(t[1], t[0], -t[2])); 
-        normals.push_back(VEC3(n[1], -n[0], n[2])); // orient it like Jin et al.
       }
     }
   } else {
@@ -310,7 +310,6 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
         );
         vertices.push_back(x_0 + a * n); 
         tangents.push_back(VEC3(t[1], t[0], -t[2])); 
-        normals.push_back(VEC3(n[1], -n[0], n[2])); // orient it like Jin et al.
       }
     }
   }
@@ -320,24 +319,15 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       int m = i * NUM_SWEEP_POINTS + (j + 1) % NUM_SWEEP_POINTS; 
       int n = (i + 1) * NUM_SWEEP_POINTS + (j + 1) % NUM_SWEEP_POINTS; 
       int p = (i + 1) * NUM_SWEEP_POINTS + j;
-      auto c1 = getColor(l, m, n, normals, tangents, fil.type, map_type); 
-      auto c2 = getColor(n, p, l, normals, tangents, fil.type, map_type); 
-      scene.add_primitive(
-        new Triangle(
-          vertices[l],
-          vertices[m],
-          vertices[n],
-          c1
-        )
-      );
-      scene.add_primitive(
-        new Triangle(
-          vertices[n],
-          vertices[p],
-          vertices[l],
-          c2
-        )
-      );
+      Triangle *t1 = new Triangle(vertices[l], vertices[m], vertices[n]); 
+      Triangle *t2 = new Triangle(vertices[n], vertices[p], vertices[l]); 
+      VEC3 tangent_dir = rodriguez_formula(normalized(vertices[p] - vertices[l]), t1->normal(VEC3(0,0,0)), PHI);
+      auto c1 = getColor(l, m, n, t1, tangent_dir, tangents, fil.type, map_type); 
+      auto c2 = getColor(n, p, l, t2, tangent_dir, tangents, fil.type, map_type); 
+      t1->color = c1;
+      t2->color = c2;
+      scene.add_primitive(t1);
+      scene.add_primitive(t2);
     }
   }
 }

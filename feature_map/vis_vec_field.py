@@ -1,31 +1,26 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
+import matplotlib.pyplot as plt
 
-# Load the tangent map from the PPM file
-tangent_image = Image.open('tangent_map.png')
-tangent_map = np.array(tangent_image) / 255.0 * 2 - 1  # Convert to [-1, 1] range
+def color_to_vec(x):
+    x = np.array(x) / 255.
+    x = x[:-1]
+    return x * 2 - 1
 
-# Extract the x and y components of the tangent
-U = tangent_map[:, :, 0]
-V = tangent_map[:, :, 1]
+image_data = np.array(Image.open('normal_map.png'))
 
-# Generate a grid of coordinates
-height, width = tangent_map.shape[:2]
-Y, X = np.mgrid[0:height, 0:width]
+fig, ax = plt.subplots()
+ax.imshow(image_data)
 
-density = 60
+def on_hover(event):
+    if event.inaxes == ax:
+        x, y = int(event.xdata), int(event.ydata)
+        if 0 <= x < image_data.shape[1] and 0 <= y < image_data.shape[0]:
+            pixel = image_data[y, x]
+            transformed_pixel = color_to_vec(pixel)
+            ax.set_title(f"Transformed pixel: {transformed_pixel}")
+            fig.canvas.draw_idle()
 
-X = X[::density, ::density]
-Y = Y[::density, ::density]
-U = U[::density, ::density]
-V = V[::density, ::density]
-
-# Plot the image
-plt.imshow(tangent_image, extent=(0, width, height, 0))
-
-# Overlay the vector field
-plt.quiver(X, Y, U, V, color='red', scale=30)
-
-plt.savefig('a.png')
+fig.canvas.mpl_connect('motion_notify_event', on_hover)
+plt.show()
 

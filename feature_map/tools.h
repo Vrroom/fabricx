@@ -25,6 +25,14 @@ const int XRES = 800, YRES = 600;
 typedef unsigned long long ULL; 
 typedef unsigned int UI; 
 
+VEC3 rodriguez_formula(VEC3 v, VEC3 k, Real theta) { 
+  return v * cos(theta) + k.cross(v) * sin(theta) + k * (k.dot(v)) * (1 - cos(theta));
+}
+
+Real sign (Real x) {
+  return x < 0. ? -1.0 : 1.0;
+}
+
 Real random_real () {
   return (rand() + 0.0) / (RAND_MAX + 0.0); 
 }
