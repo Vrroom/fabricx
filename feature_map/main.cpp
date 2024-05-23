@@ -15,6 +15,7 @@
 #include "imageTools.h"
 #include "primitive.h"
 #include "bvh.h"
+#include "PerlinNoise.hpp"
 
 using namespace std;
 
@@ -29,6 +30,11 @@ double PHI = M_PI / 3;
 double EPSILON = 1e-3;
 
 bool DELTA_TRANSMISSION = false;
+bool ADD_NOISE = false;
+
+const siv::PerlinNoise::seed_type seed = 123456u;
+
+const siv::PerlinNoise perlin{ seed };
 
 typedef VEC3 Color;
 
@@ -275,7 +281,11 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
         double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
         VEC3 n(sin(v), sin(u) * cos(v), cos(u) * cos(v));
-        vertices.push_back(x_0 + a * n); 
+        VEC3 pt = x_0 + a * n; 
+        VEC3 noise_term = VEC3(0,0,0); 
+        if (ADD_NOISE) 
+          noise_term = perlin.noise2D(pt[0], pt[1]) * VEC3(0, 0, 1);
+        vertices.push_back(pt + noise_term); 
       }
     }
   } else {
@@ -289,7 +299,11 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
         double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
         VEC3 n(sin(u) * cos(v), sin(v), cos(u) * cos(v));
-        vertices.push_back(x_0 + a * n); 
+        VEC3 pt = x_0 + a * n;
+        VEC3 noise_term = VEC3(0,0,0); 
+        if (ADD_NOISE) 
+          noise_term = perlin.noise2D(pt[0], pt[1]) * VEC3(0, 0, 1);
+        vertices.push_back(pt + noise_term); 
       }
     }
   }
@@ -339,6 +353,7 @@ int main(int argc, char* argv[]) {
     ("n,num-tiles", "Number of tiles to make using the Filament map", cxxopts::value<int>()->default_value(std::to_string(N_TILE)))
     ("f,file-path", "File path for input/output", cxxopts::value<string>(file_path))
     ("d,delta-transmission", "Delta transmission", cxxopts::value<bool>()->default_value(std::to_string(DELTA_TRANSMISSION)))
+    ("a,add-noise", "Add Perlin Noise", cxxopts::value<bool>()->default_value(std::to_string(ADD_NOISE)))
     ("help", "Print help");
 
   auto result = options.parse(argc, argv);
@@ -356,6 +371,7 @@ int main(int argc, char* argv[]) {
   PHI = result["twisting-angle"].as<double>();
   N_TILE = result["num-tiles"].as<int>();
   DELTA_TRANSMISSION = result["delta-transmission"].as<bool>();
+  ADD_NOISE = result["add-noise"].as<bool>();
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 

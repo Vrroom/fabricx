@@ -1,6 +1,6 @@
 CC         = g++
-CFLAGS     = -c -O3 -fopenmp
-LDFLAGS    = -fopenmp
+CFLAGS     = -c -O3 -fopenmp -std=c++17
+LDFLAGS    = -fopenmp -lm -lstdc++
 
 MAIN_SRC   = main.cpp
 VIS_SRC    = visibility.cpp
