@@ -173,7 +173,7 @@ void rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
   }
 }
 
-VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, vector<VEC3> &tangents, int type, FeatureMapType map_type) { 
+VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, FeatureMapType map_type) { 
   if (map_type == ID_MAP) { 
     if (type >= COLORS.size()) {
       return (type % 2 == 0) ? VEC3(1, 0, 0) : VEC3(0, 0, 0); 
@@ -184,7 +184,6 @@ VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, vector<VEC3> 
     pt = pt * sign(pt.dot(VEC3(0, 0, 1))); 
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
   } else if (map_type == TANGENT_MAP) {
-    // VEC3 pt = normalized((tangents[i] + tangents[j] + tangents[k]) / 3.0);
     VEC3 pt = tangent_dir;
     return (pt + VEC3(1.0, 1.0, 1.0)) / 2.0;
   } else {
@@ -264,7 +263,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
 }
 
 void placeFilament (Filament2D &fil, FeatureMapType map_type) { 
-  vector<VEC3> vertices, tangents; 
+  vector<VEC3> vertices; 
   if ((fil.type % 2) == 1) {
     double w = fil.rect.s1;
     double a = fil.rect.s2 / 2;
@@ -275,18 +274,8 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       VEC3 x_0(fil.rect.o[1] + a, fil.rect.o[0] + w/2 + R * sin(u), R * cos(u) - R);
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
         double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
-        VEC3 n(
-          sin(v), 
-          sin(u) * cos(v), 
-          cos(u) * cos(v)
-        );
-        VEC3 t(
-          -cos(v) * sin(PHI), 
-          cos(u) * cos(PHI) + sin(u) * sin(v) * sin(PHI), 
-          -sin(u) * cos(PHI) + cos(u) * sin(v) * sin(PHI)
-        );
+        VEC3 n(sin(v), sin(u) * cos(v), cos(u) * cos(v));
         vertices.push_back(x_0 + a * n); 
-        tangents.push_back(VEC3(t[1], t[0], -t[2])); 
       }
     }
   } else {
@@ -299,17 +288,8 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       VEC3 x_0(R * sin(u) + w/2 + fil.rect.o[1], a + fil.rect.o[0], R * cos(u) - R);
       for (int j = 0; j < NUM_SWEEP_POINTS; j++) {
         double v = -M_PI + (2.0 * M_PI) * (j + 0.0) / (NUM_SWEEP_POINTS + 0.0);
-        VEC3 n(
-          sin(u) * cos(v), 
-          sin(v), 
-          cos(u) * cos(v));
-        VEC3 t(
-          cos(u) * cos(PHI) + sin(u) * sin(v) * sin(PHI), 
-          -cos(v) * sin(PHI), 
-          -sin(u) * cos(PHI) + cos(u) * sin(v) * sin(PHI)
-        );
+        VEC3 n(sin(u) * cos(v), sin(v), cos(u) * cos(v));
         vertices.push_back(x_0 + a * n); 
-        tangents.push_back(VEC3(t[1], t[0], -t[2])); 
       }
     }
   }
@@ -322,8 +302,8 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
       Triangle *t1 = new Triangle(vertices[l], vertices[m], vertices[n]); 
       Triangle *t2 = new Triangle(vertices[n], vertices[p], vertices[l]); 
       VEC3 tangent_dir = rodriguez_formula(normalized(vertices[p] - vertices[l]), t1->normal(VEC3(0,0,0)), PHI);
-      auto c1 = getColor(l, m, n, t1, tangent_dir, tangents, fil.type, map_type); 
-      auto c2 = getColor(n, p, l, t2, tangent_dir, tangents, fil.type, map_type); 
+      auto c1 = getColor(l, m, n, t1, tangent_dir, fil.type, map_type); 
+      auto c2 = getColor(n, p, l, t2, tangent_dir, fil.type, map_type); 
       t1->color = c1;
       t2->color = c2;
       scene.add_primitive(t1);
