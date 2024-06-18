@@ -1,0 +1,8 @@
+*.o
+/feature_map/main
+/feature_map/visibility
+img.png
+
+commands.txt
+
+__pycache__/

@@ -195,8 +195,8 @@ class SpongeCake (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('bent_normal_map.png').convert('RGB')))))
-        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('asg_params.npy')))
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('misc/bent_normal_map.png').convert('RGB')))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('misc/asg_params.npy')))
 
         nm = np.array(Image.open(normal_map_file).convert('RGB'))
         tm = np.array(Image.open(tangent_map_file).convert('RGB'))
