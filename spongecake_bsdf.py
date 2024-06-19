@@ -209,6 +209,7 @@ class SpongeCake (mi.BSDF) :
         texture_map = np.array(Image.open(texture_file)) / 255.
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
+        assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
         # 0 means transmit, 1 means go through
         self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
 
@@ -292,9 +293,10 @@ class SpongeCake (mi.BSDF) :
         bent_normal = bent_normal / dr.norm(bent_normal)
         mu = euclidean_to_spherical_dr(bent_normal)
         V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
-        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) #& (V_i > 0.5) & (V_o > 0.5)
+        v_threshold = 0.5
+        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) & (V_i > v_threshold) & (V_o > v_threshold)
 
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
 
@@ -370,6 +372,7 @@ class JinSpongeCake (mi.BSDF) :
         texture_map = np.array(Image.open(texture_file)) / 255.
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
+        assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
         # 0 means transmit, 1 means go through
         self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
 
