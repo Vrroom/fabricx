@@ -541,8 +541,8 @@ class SurfaceBased (mi.BSDF) :
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.)) 
 
-        bent_normal = mi.Vector3f(self.bent_normal_map.eval(si.uv))
-        asg_params = mi.Vector3f(self.asg_params.eval(si.uv))
+        # bent_normal = mi.Vector3f(self.bent_normal_map.eval(si.uv))
+        # asg_params = mi.Vector3f(self.asg_params.eval(si.uv))
 
         normal = mi.Vector3f(self.normal_map.eval(si.uv))
         tangent = mi.Vector3f(self.tangent_map.eval(si.uv))
@@ -599,22 +599,42 @@ class SurfaceBased (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
+        # NOTE: removed visibility testing here, please use SpongeCake instead
         # EXPERIMENT WITH VISIBILITY
-        di = euclidean_to_spherical_dr(si.wi) 
-        do = euclidean_to_spherical_dr(wo) 
-        bent_normal = bent_normal / dr.norm(bent_normal)
-        mu = euclidean_to_spherical_dr(bent_normal)
-        V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
+        # di = euclidean_to_spherical_dr(si.wi) 
+        # do = euclidean_to_spherical_dr(wo) 
+        # bent_normal = bent_normal / dr.norm(bent_normal)
+        # mu = euclidean_to_spherical_dr(bent_normal)
+        # V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+        # V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
-        v_threshold = 0.5
-        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) & (V_i > v_threshold) & (V_o > v_threshold)
+        # v_threshold = 0.5
+        active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) # & (V_i > v_threshold) & (V_o > v_threshold)
 
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
+        
+        # NOTE: the previous version (in JinSpongeCake) is
+        # f_diffuse = (color / dr.pi) * (self.w * dr.abs(cos_theta_i / (dr.dot(si.wi, normal))) + (1 - self.w)) * dr.abs(cos_theta_o)
+        # TODO: check the numerator and denominator, as it is different in the two papers (Jin and SurfaceBased)
+        # TODO: now the case of denominator <=0 before clamping is ignored, otherwise it will result in division by 0
+        diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
+        f_diffuse = dr.select(
+            diffuse_sign * cos_theta_i <= 0,
+            mi.Color3f(0.0, 0.0, 0.0),
+            (color / math.pi) * (
+                self.w * (clamped_dot(diffuse_sign * si.wi, normal) / clamp_to_nonnegative(diffuse_sign * cos_theta_i)) +
+                (1.0 - self.w)
+            ) * dr.abs(cos_theta_o)
+            # multiplied by the cosine foreshortening factor, as in Mitsuba's documentation:
+            # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
+        )
+
+        s_weight = 0.5 # TODO: think about the weights here
+        f_surface_based = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
 
         perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
-        weight = (f_sponge_cake / bs.pdf) * perturb_weight
+        weight = (f_surface_based / bs.pdf) * perturb_weight
         weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
