@@ -555,6 +555,12 @@ class SurfaceBased (mi.BSDF) :
 
         tangent = tangent - dr.sum(tangent * normal) * normal
 
+        ####################################################
+        ## Micro-scale BSDF
+
+        ################################
+        ## Specular Terms
+
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
 
         S = rotate_s_mat(S, normal, tangent)
@@ -599,7 +605,7 @@ class SurfaceBased (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
-        # NOTE: removed visibility testing here, please use SpongeCake instead
+        # NOTE: removed visibility testing here, please use SpongeCake for that instead
         # EXPERIMENT WITH VISIBILITY
         # di = euclidean_to_spherical_dr(si.wi) 
         # do = euclidean_to_spherical_dr(wo) 
@@ -612,6 +618,9 @@ class SurfaceBased (mi.BSDF) :
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) # & (V_i > v_threshold) & (V_o > v_threshold)
 
         f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
+
+        ################################
+        ## Diffuse Terms
         
         # NOTE: the previous version (in JinSpongeCake) is
         # f_diffuse = (color / dr.pi) * (self.w * dr.abs(cos_theta_i / (dr.dot(si.wi, normal))) + (1 - self.w)) * dr.abs(cos_theta_o)
@@ -629,12 +638,16 @@ class SurfaceBased (mi.BSDF) :
             # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
         )
 
-        s_weight = 0.5 # TODO: think about the weights here
-        f_surface_based = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
+        s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
+        f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
+
+        ####################################################
+        ## Meso-scale BSDF
+        ## TODO
 
         perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
-        weight = (f_surface_based / bs.pdf) * perturb_weight
+        weight = (f_surface_based_micro / bs.pdf) * perturb_weight
         weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
