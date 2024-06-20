@@ -164,6 +164,12 @@ def rotate_s_mat (s_mat, normal, tangent) :
     R = mi.Matrix3f(dr.cross(normal, tangent), tangent, normal)
     return dr.transpose(R) @ s_mat @ R
 
+def clamp_to_nonnegative(x):
+    return dr.maximum(0.0, x)
+
+def clamped_dot(v1, v2):
+    return clamp_to_nonnegative(dr.dot(v1, v2))
+
 if __name__ == "__main__" : 
     # TODO: Plot and verify the distribution functions from the original SGGX microflake paper
     mi.set_variant('llvm_ad_rgb') 

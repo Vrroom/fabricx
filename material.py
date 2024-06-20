@@ -27,7 +27,7 @@ if __name__ == "__main__" :
     # bsdf parameters
     parser.add_argument('--bsdf-type', type=str, default='SimpleSpongeCake', help='Class name of the bsdf')
     parser.add_argument('--alpha', type=float, nargs='+', default=[1.0], help='List of integers for alpha')
-    parser.add_argument('--optical_depth', type=float, nargs='+', default=[1.0], help='List of integers for alpha')
+    parser.add_argument('--optical_depth', type=float, nargs='+', default=[2.0], help='List of integers for alpha') # T * \rho = 2.0, as in Jin et al.'s paper, section 3.2
     parser.add_argument('--fiber', action='store_true', help='Whether to use the fiber mode or the surface mode')
     parser.add_argument('--texture', type=str, default=None, help='Texture file')
     parser.add_argument('--normal_map', type=str, default=None, help='Normal map file')
