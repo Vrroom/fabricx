@@ -146,6 +146,7 @@ FilamentMap readFilamentMap(const string& filePath) {
 
 enum FeatureMapType {
   ID_MAP,
+  POSITION_MAP,
   NORMAL_MAP, 
   TANGENT_MAP, 
   INVALID_MAP
@@ -185,6 +186,8 @@ VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, Fea
       return (type % 2 == 0) ? VEC3(1, 0, 0) : VEC3(0, 0, 0); 
     }
     return COLORS[type];
+  } else if (map_type == POSITION_MAP) {
+    return VEC3(0.0, 0.0, (t->a[2] + t->b[2] + t->c[2]) / 3.0); // average z coordinate, works well if the triangle is sufficiently small
   } else if (map_type == NORMAL_MAP) { 
     VEC3 pt = t->normal(VEC3(0,0,0));
     pt = pt * sign(pt.dot(VEC3(0, 0, 1))); 
@@ -375,8 +378,8 @@ int main(int argc, char* argv[]) {
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 
-  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
-  vector<string> names = { "normal_map.png", "tangent_map.png", "id_map.png" }; 
+  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, POSITION_MAP }; 
+  vector<string> names = { "normal_map.png", "tangent_map.png", "id_map.png", "position_map.png" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }

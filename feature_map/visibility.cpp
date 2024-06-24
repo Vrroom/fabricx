@@ -38,6 +38,7 @@ typedef pair<int, int> P;
 
 enum FeatureMapType {
   ID_MAP,
+  POSITION_MAP,
   NORMAL_MAP, 
   TANGENT_MAP, 
   BENT_NORMAL_MAP,
@@ -201,7 +202,12 @@ void build (FeatureMapType map_type) {
         VEC3(profile[i + 1][0], y2, profile[i + 1][2]),
         VEC3(1, 1, 0)
       );
-      if (map_type == NORMAL_MAP) { 
+      if (map_type == POSITION_MAP) {
+        // average z coordinate, works well if the triangle is sufficiently small
+        // TODO: currently the z coordinates are too small and seem to round to 0
+        a->color = VEC3(0.0, 0.0, (a->a[2] + a->b[2] + a->c[2]) / 3.0);
+        b->color = VEC3(0.0, 0.0, (b->a[2] + b->b[2] + b->c[2]) / 3.0);
+      } else if (map_type == NORMAL_MAP) { 
         a->color = a->normal(VEC3(0.0, 0.0, 0.0));
         a->color = (a->color + VEC3(1.0, 1.0, 1.0)) / 2.0;
 
@@ -256,8 +262,8 @@ int main(int argc, char* argv[]) {
   PHI = result["twisting-angle"].as<double>();
   DELTA_TRANSMISSION = result["delta-transmission"].as<bool>();
 
-  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, BENT_NORMAL_MAP }; 
-  vector<string> names = { "normal_map.png", "tangent_map.png", "id_map.png", "bent_normal_map.png" }; 
+  vector<FeatureMapType> types = { POSITION_MAP, NORMAL_MAP, TANGENT_MAP, ID_MAP, BENT_NORMAL_MAP }; 
+  vector<string> names = { "position_map.png", "normal_map.png", "tangent_map.png", "id_map.png", "bent_normal_map.png" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(types[i], names[i]);
   }
