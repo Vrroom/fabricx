@@ -30,4 +30,8 @@ typedef Eigen::Triplet<Real> TRIPLET;
 #define NDEBUG
 #endif
 
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+
 #endif
