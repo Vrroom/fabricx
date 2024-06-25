@@ -10,6 +10,8 @@ def read_txt_feature_map(path):
     Utility function that reads features maps that are stored as .txt files
     Return a numpy array
     """
+    if (not path.endswith(".txt")):
+        raise RuntimeError("File name must end with .txt")
     with open(path, "r") as txt:
         lines = txt.readlines()
         vector_lists = [line.removesuffix(",\n").split(",") for line in lines]

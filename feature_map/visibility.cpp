@@ -104,6 +104,11 @@ VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangent
 //////////////////////////////////////////////////////////////////////////////////
 void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
+  VEC4** colorArray = new VEC4*[xRes];
+  for (int i = 0; i < xRes; i++)
+  {
+    colorArray[i] = new VEC4[yRes];
+  }
   Image im(xRes, yRes);
   // allocate the final image
   const int totalCells = xRes * yRes;
@@ -162,12 +167,32 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
 
       // set, in final image
       im.set_color_4(y, x, color); 
+      // TODO: remove the *255.0 after fixing how the files are read in bsdf construction (__init__)
+      colorArray[x][y] = color * 255.0;
     }
   }
   // detect whether there are some degenerate pixels 
   // Fix them.
-  writePNG(filename, im);
 
+  string filename_txt = filename + ".txt";
+  ofstream txtFile;
+  txtFile.open(filename_txt);
+  for (int i = 0; i < xRes; i++)
+  {
+    for (int j = 0; j < yRes; j++)
+    {
+      txtFile << colorArray[i][j][0] << " "
+              << colorArray[i][j][1] << " "
+              << colorArray[i][j][2] << " "
+              << colorArray[i][j][3] << ",";
+    }
+    txtFile << "\n";
+  }
+  txtFile.close();
+  delete[] colorArray;
+
+  string filename_png = filename + ".png";
+  writePNG(filename_png, im);
 }
 
 void build (FeatureMapType map_type) {
@@ -263,7 +288,7 @@ int main(int argc, char* argv[]) {
   DELTA_TRANSMISSION = result["delta-transmission"].as<bool>();
 
   vector<FeatureMapType> types = { POSITION_MAP, NORMAL_MAP, TANGENT_MAP, ID_MAP, BENT_NORMAL_MAP }; 
-  vector<string> names = { "position_map.png", "normal_map.png", "tangent_map.png", "id_map.png", "bent_normal_map.png" }; 
+  vector<string> names = { "position_map", "normal_map", "tangent_map", "id_map", "bent_normal_map" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(types[i], names[i]);
   }
