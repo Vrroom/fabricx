@@ -278,7 +278,6 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   string filename_txt = filename + ".txt";
   ofstream txtFile;
   txtFile.open(filename_txt);
-  txtFile << xRes << " " << yRes << "\n";
   for (int i = 0; i < xRes; i++)
   {
     for (int j = 0; j < yRes; j++)
@@ -286,7 +285,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       txtFile << colorArray[i][j][0] << " "
               << colorArray[i][j][1] << " "
               << colorArray[i][j][2] << " "
-              << colorArray[i][j][3] << " ";
+              << colorArray[i][j][3] << ",";
     }
     txtFile << "\n";
   }

@@ -520,8 +520,10 @@ class SurfaceBased (mi.BSDF) :
         self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('misc/bent_normal_map.png').convert('RGB')))))
         self.asg_params = mi.Texture2f(mi.TensorXf(np.load('misc/asg_params.npy')))
 
-        nm = np.array(Image.open(normal_map_file).convert('RGB'))
-        tm = np.array(Image.open(tangent_map_file).convert('RGB'))
+        # nm = np.array(Image.open(normal_map_file).convert('RGB'))
+        # tm = np.array(Image.open(tangent_map_file).convert('RGB'))
+        nm = read_txt_feature_map(normal_map_file)
+        tm = read_txt_feature_map(tangent_map_file)
 
         nm, tm = fix_normal_and_tangent_map(nm, tm)
 
