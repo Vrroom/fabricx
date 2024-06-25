@@ -9,5 +9,8 @@ if __name__ == "__main__":
   args = parser.parse_args()
   png_path = args.path
 
+  if (not png_path.endswith(".png")):
+    raise RuntimeError("File name must end with .png")
+
   im = Image.open(png_path, "r")
   print(list(im.getdata())[:args.count])
