@@ -1,7 +1,9 @@
+img.png
+
 *.o
 /feature_map/main
 /feature_map/visibility
-img.png
+/demo_feature_maps/**/*.txt
 
 commands.txt
 
