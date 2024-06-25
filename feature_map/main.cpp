@@ -205,6 +205,12 @@ VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, Fea
 //////////////////////////////////////////////////////////////////////////////////
 void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
+  VEC4** colorArray = new VEC4*[xRes];
+  for (int i = 0; i < xRes; i++)
+  {
+    colorArray[i] = new VEC4[yRes];
+  }
+
   Image im(xRes, yRes);
   // allocate the final image
   const int totalCells = xRes * yRes;
@@ -229,6 +235,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
 
       // set, in final image
       im.set_color_4(y, x, color); 
+      // TODO: remove the *255.0 after fixing how the files are read in bsdf construction (__init__)
+      colorArray[x][y] = color * 255.0;
     }
   }
   // detect whether there are some degenerate pixels 
@@ -267,8 +275,26 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     }
   }
   // Fix them.
-  writePNG(filename, im);
+  string filename_txt = filename + ".txt";
+  ofstream txtFile;
+  txtFile.open(filename_txt);
+  txtFile << xRes << " " << yRes << "\n";
+  for (int i = 0; i < xRes; i++)
+  {
+    for (int j = 0; j < yRes; j++)
+    {
+      txtFile << colorArray[i][j][0] << " "
+              << colorArray[i][j][1] << " "
+              << colorArray[i][j][2] << " "
+              << colorArray[i][j][3] << " ";
+    }
+    txtFile << "\n";
+  }
+  txtFile.close();
+  delete[] colorArray;
 
+  string filename_png = filename + ".png";
+  writePNG(filename_png, im);
 }
 
 void placeFilament (Filament2D &fil, FeatureMapType map_type) { 
@@ -379,7 +405,7 @@ int main(int argc, char* argv[]) {
 
   FilamentMap fil_map = readFilamentMap(file_path); 
   vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, POSITION_MAP }; 
-  vector<string> names = { "normal_map.png", "tangent_map.png", "id_map.png", "position_map.png" }; 
+  vector<string> names = { "normal_map", "tangent_map", "id_map", "position_map" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }
