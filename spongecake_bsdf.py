@@ -630,7 +630,7 @@ class SurfaceBased (mi.BSDF) :
         # TODO: now the case of denominator <=0 before clamping is ignored, otherwise it will result in division by 0
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
         f_diffuse = dr.select(
-            diffuse_sign * cos_theta_i <= 0,
+            diffuse_sign * cos_theta_i <= 0.01, # TODO: artifacts in diffuse part when this is set to <= 0
             mi.Color3f(0.0, 0.0, 0.0),
             (color / math.pi) * (
                 self.w * (clamped_dot(diffuse_sign * si.wi, normal) / clamp_to_nonnegative(diffuse_sign * cos_theta_i)) +
