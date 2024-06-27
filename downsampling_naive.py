@@ -1,7 +1,7 @@
 """
 Naive implementation which takes a normal map of size 2^l
-and generates normal maps of size 2^1 to 2^(l-1)
-by simply averaging the normals
+and generates normal maps of size 2^0 to 2^(l-1)
+by simply averaging the 4 surrounding normals
 """
 
 
