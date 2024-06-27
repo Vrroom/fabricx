@@ -48,12 +48,12 @@ for dim in dims:
     prev_map = maps[-1]
     for i in np.arange(dim):
         for j in np.arange(dim):
-            avg_normal = (
+            cur_map[i][j] = (
                 prev_map[i*2][j*2] +
                 prev_map[i*2+1][j*2] +
                 prev_map[i*2][j*2+1] +
                 prev_map[i*2+1][j*2+1]
             ) / 4.0
-            cur_map[i][j] = avg_normal / np.linalg.norm(avg_normal)
     maps.append(cur_map)
-    np.save(output_path + "normal_" + str(dim), cur_map)
+    cur_map_normalized = cur_map / np.linalg.norm(cur_map, axis=-1)[:,:,None]   # only normalize when storing, to avoid incorrect averaging
+    np.save(output_path + "normal_" + str(dim), cur_map_normalized)
