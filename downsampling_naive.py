@@ -32,7 +32,7 @@ if not is_power_of_two(normal_map_dim):
     raise RuntimeError("Incorrect normal map dimension: it should be a power of 2.")
 
 # NOTE: it could be helpful to save the input normal map as .npy as well
-# np.save(output_path + "normal_" + str(normal_map_dim), normal_map)
+np.save(output_path + "normal_" + str(normal_map_dim), normal_map)
 
 # mipmap dims, starting from (input map dim)//2
 cur_dim = normal_map_dim // 2
@@ -48,11 +48,12 @@ for dim in dims:
     prev_map = maps[-1]
     for i in np.arange(dim):
         for j in np.arange(dim):
-            cur_map[i][j] = (
+            avg_normal = (
                 prev_map[i*2][j*2] +
                 prev_map[i*2+1][j*2] +
                 prev_map[i*2][j*2+1] +
                 prev_map[i*2+1][j*2+1]
             ) / 4.0
+            cur_map[i][j] = avg_normal / np.linalg.norm(avg_normal)
     maps.append(cur_map)
     np.save(output_path + "normal_" + str(dim), cur_map)

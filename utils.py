@@ -73,16 +73,13 @@ def fix_map (n) :
 
 def fix_normal_and_tangent_map (n, t) : 
     """ 
-    n and t are numpy arrays that are in the color mode. 
+    n and t are numpy arrays that store normal and tangent vectors (supposed to be unit vectors). 
     [H, W, 3]
 
-    Here we convert them into vectors and make sure that their
+    Here we make sure that their
     norm is one and they are orthogonal
     """ 
     H, W, C = n.shape
-    
-    n = n / 255.0
-    t = t / 255.0 
 
     n = (n * 2) - 1.0
     t = (t * 2) - 1.0
