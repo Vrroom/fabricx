@@ -166,9 +166,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       color = color * (1.0 / ((Real) rays.size())); 
 
       // set, in final image
-      im.set_color_4(y, x, color); 
-      // TODO: remove the *255.0 after fixing how the files are read in bsdf construction (__init__)
-      colorArray[x][y] = color * 255.0;
+      im.set_color_4(y, x, color);
+      colorArray[x][y] = color;
     }
   }
   // detect whether there are some degenerate pixels 

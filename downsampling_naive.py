@@ -54,6 +54,6 @@ for dim in dims:
                 prev_map[i*2][j*2+1] +
                 prev_map[i*2+1][j*2+1]
             ) / 4.0
-            cur_map[i][j] = avg_normal / np.linalg.norm(avg_normal / 255.0)
+            cur_map[i][j] = avg_normal / np.linalg.norm(avg_normal)
     maps.append(cur_map)
     np.save(output_path + "normal_" + str(dim), cur_map)

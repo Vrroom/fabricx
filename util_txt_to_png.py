@@ -18,5 +18,5 @@ if __name__ == "__main__":
     raise RuntimeError("Output file name must end with .png")
 
   nm = read_txt_feature_map(txt_path)
-  im = Image.fromarray(np.uint8(nm))
+  im = Image.fromarray(np.uint8(nm * 255.0))
   im.save(png_path)
