@@ -4,12 +4,8 @@ and generates normal maps of size 2^0 to 2^(l-1)
 by simply averaging the 4 surrounding normals
 """
 
-
-
 import numpy as np
 from utils import read_txt_feature_map
-
-
 
 def is_power_of_two(x):
     if x < 1:
@@ -17,8 +13,6 @@ def is_power_of_two(x):
     if x == 1:
         return True
     return is_power_of_two(x/2)
-
-
 
 input_path = "cloth/normal_map.txt"
 output_path = "mipmaps/"

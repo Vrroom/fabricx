@@ -6,7 +6,7 @@ import os
 import numpy as np
 from PIL import Image
 
-mipmaps_path = "mipmaps/"
+mipmaps_path = "../mipmaps/"
 
 files = os.scandir(mipmaps_path)
 for file in files:
