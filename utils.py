@@ -19,6 +19,9 @@ def read_txt_feature_map(path):
         vectors_np = np.array(vectors, dtype=float)
     return vectors_np
 
+def tile_feature_map(map: np.ndarray, times):
+    return np.tile(map, (times, times, 1))
+
 def imgArrayToPIL (arr) :
     """ utility to convert img array to PIL """
     if arr.dtype in [np.float32, float] :
