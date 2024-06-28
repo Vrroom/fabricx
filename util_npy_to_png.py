@@ -1,7 +1,6 @@
 """
-Convert the npy file at ../`input_path`
-to a png file at ../`output_path`
-i.e. please enter the paths relative to the main directory
+Convert the npy file at `input_path`
+to a png file at `output_path`
 """
 
 import argparse
@@ -14,11 +13,11 @@ if __name__ == "__main__":
   parser.add_argument("output_path", type=str, default="temp.png", help="Path of the output PNG file.")
 
   args = parser.parse_args()
-  npy_path = "../" + args.input_path
+  npy_path = args.input_path
   if (not npy_path.endswith(".npy")):
     raise RuntimeError("Input file name must end with .npy")
 
-  png_path = "../" + args.output_path
+  png_path = args.output_path
   if (not png_path.endswith(".png")):
     raise RuntimeError("Output file name must end with .png")
 
