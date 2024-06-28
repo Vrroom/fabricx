@@ -26,7 +26,7 @@ if __name__ == "__main__":
     raise RuntimeError("Input file must be txt, png, or npy")
 
   output_path = args.output_path
-  if (not (output_path.endswith(".txt") or input_path.endswith(".png") or input_path.endswith(".npy"))):
+  if (not (output_path.endswith(".txt") or output_path.endswith(".png") or output_path.endswith(".npy"))):
     raise RuntimeError("Output file must be txt, png, or npy")
 
   # Cases
