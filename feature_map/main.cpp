@@ -205,33 +205,52 @@ VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, Fea
 //////////////////////////////////////////////////////////////////////////////////
 void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
-  VEC4** colorArray = new VEC4*[xRes];
-  for (int i = 0; i < xRes; i++)
+  int xRes_eq = xRes;
+  int yRes_eq = yRes;
+  if (map_type == POSITION_MAP)
   {
-    colorArray[i] = new VEC4[yRes];
+    xRes_eq += 1;
+    yRes_eq += 1;
   }
 
-  Image im(xRes, yRes);
+  VEC4** colorArray = new VEC4*[xRes_eq];
+  for (int i = 0; i < xRes_eq; i++)
+  {
+    colorArray[i] = new VEC4[yRes_eq];
+  }
+
+  Image im(xRes_eq, yRes_eq);
   // allocate the final image
-  const int totalCells = xRes * yRes;
+  const int totalCells = xRes_eq * yRes_eq;
 
   // compute image plane
   #pragma omp parallel for collapse(2)
-  for (int y = 0; y < yRes; y++) { 
-    for (int x = 0; x < xRes; x++) 
+  for (int y = 0; y < yRes_eq; y++) { 
+    for (int x = 0; x < xRes_eq; x++) 
     {
       // get the color
       VEC4 color(0.0, 0.0, 0.0, 0.0);
-      vector<Ray> rays; 
-      cam.get_primary_rays_for_pixel(x, y, xRes, yRes, rays); 
-      for (auto r: rays) {
+      if (map_type == POSITION_MAP) {
+        Ray r = cam.get_ray_for_pixel_corner(x, y, xRes_eq, yRes_eq);
         VEC3 rColor;
         bool intersected = true;
         rayColor(r, rColor, intersected);
-        if (intersected || !DELTA_TRANSMISSION) 
-          color += to_hom(rColor); 
+        if (intersected || !DELTA_TRANSMISSION)
+          color = to_hom(rColor);
       }
-      color = color * (1.0 / ((Real) rays.size())); 
+      else
+      {
+        vector<Ray> rays; 
+        cam.get_primary_rays_for_pixel(x, y, xRes_eq, yRes_eq, rays); 
+        for (auto r: rays) {
+          VEC3 rColor;
+          bool intersected = true;
+          rayColor(r, rColor, intersected);
+          if (intersected || !DELTA_TRANSMISSION) 
+            color += to_hom(rColor); 
+        }
+        color = color * (1.0 / ((Real) rays.size())); 
+      }
 
       // set, in final image
       im.set_color_4(y, x, color);
@@ -241,8 +260,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   // detect whether there are some degenerate pixels 
   if ((map_type == NORMAL_MAP || map_type == TANGENT_MAP) && !DELTA_TRANSMISSION) { 
     set<P> degenerate; 
-    for (int y = 0; y < yRes; y++) {
-      for (int x = 0; x < xRes; x++) {
+    for (int y = 0; y < yRes_eq; y++) {
+      for (int x = 0; x < xRes_eq; x++) {
         VEC3 color = im.get_color(x, y); 
         VEC3 vec = color * 2.0 - VEC3(1.0, 1.0, 1.0);
         if (abs(norm(vec) - 1.0) > 1e-2) 
@@ -257,7 +276,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
         bool found = false;
         for (auto nbr: nbrs) { 
           int x_ = x + nbr.first, y_ = y + nbr.second; 
-          if (x_ < xRes && x_ >= 0 && y_ < yRes && y_ >= 0) {
+          if (x_ < xRes_eq && x_ >= 0 && y_ < yRes_eq && y_ >= 0) {
             VEC3 color = im.get_color(x_, y_); 
             VEC3 vec = color * 2.0 - VEC3(1.0, 1.0, 1.0);
             if (abs(norm(vec) - 1.0) <= 1e-2) {
@@ -277,9 +296,9 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   string filename_txt = filename + ".txt";
   ofstream txtFile;
   txtFile.open(filename_txt);
-  for (int i = 0; i < xRes; i++)
+  for (int i = 0; i < xRes_eq; i++)
   {
-    for (int j = 0; j < yRes; j++)
+    for (int j = 0; j < yRes_eq; j++)
     {
       txtFile << colorArray[i][j][0] << " "
               << colorArray[i][j][1] << " "
@@ -402,8 +421,8 @@ int main(int argc, char* argv[]) {
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 
-  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, POSITION_MAP }; 
-  vector<string> names = { "normal_map", "tangent_map", "id_map", "position_map" }; 
+  vector<FeatureMapType> types = { POSITION_MAP, NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
+  vector<string> names = { "position_map", "normal_map", "tangent_map", "id_map" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }

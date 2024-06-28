@@ -20,7 +20,7 @@ output_path = "mipmaps/"
 normal_map = read_txt_feature_map(input_path)
 normal_map_shape = normal_map.shape
 if normal_map_shape[0] != normal_map_shape[1]:
-    raise RuntimeError("Incorrect normal map shape: is should be square.")
+    raise RuntimeError("Incorrect normal map shape: it should be square.")
 normal_map_dim = normal_map_shape[0]
 if not is_power_of_two(normal_map_dim):
     raise RuntimeError("Incorrect normal map dimension: it should be a power of 2.")
