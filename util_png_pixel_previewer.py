@@ -1,3 +1,7 @@
+"""
+Preview the first `count` pixel values of png at `path`
+"""
+
 import argparse
 from PIL import Image
 

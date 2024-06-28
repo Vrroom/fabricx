@@ -590,7 +590,7 @@ class SurfaceBased (mi.BSDF) :
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
         cos_theta_o = mi.Frame3f.cos_theta(wo)
 
-        selected_r = (cos_theta_i * cos_theta_o > 0.) # reflecting when the two have the same sign
+        selected_r = (cos_theta_i * cos_theta_o > 0.0)  # reflecting when the two have the same sign
 
         G_r = shadow_masking_term_reflect(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)
         G_t = shadow_masking_term_transmit(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)

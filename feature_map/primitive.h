@@ -732,6 +732,12 @@ struct OrthographicCamera : public Camera {
       prs.push_back(Ray(pt, rect.normal(VEC3(0,0,0))));
   }
 
+  Ray get_ray_for_pixel_corner (int x, int y, int xRes, int yRes) {
+    double dx = rect.s1 / xRes;
+    double dy = rect.s2 / yRes;
+    VEC3 point = rect.o + x * dx * rect.d1 + y * dy * rect.d2;
+    return Ray(point, rect.normal(VEC3(0,0,0)));
+  }
 }; 
 
 Cylinder * make_cylinder_from_endpoints (VEC3 a, VEC3 b, Real radius, VEC3 color=VEC3(1.0, 0.0, 0.0)) { 
