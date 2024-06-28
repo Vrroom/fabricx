@@ -104,66 +104,86 @@ VEC3 getColor (int i, int j, int k, vector<VEC3> &normals, vector<VEC3> &tangent
 //////////////////////////////////////////////////////////////////////////////////
 void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
-  VEC4** colorArray = new VEC4*[xRes];
-  for (int i = 0; i < xRes; i++)
+  int xRes_eq = xRes;
+  int yRes_eq = yRes;
+  if (map_type == POSITION_MAP)
   {
-    colorArray[i] = new VEC4[yRes];
+    xRes_eq += 1;
+    yRes_eq += 1;
   }
-  Image im(xRes, yRes);
+
+  VEC4** colorArray = new VEC4*[xRes_eq];
+  for (int i = 0; i < xRes_eq; i++)
+  {
+    colorArray[i] = new VEC4[yRes_eq];
+  }
+
+  Image im(xRes_eq, yRes_eq);
   // allocate the final image
-  const int totalCells = xRes * yRes;
+  const int totalCells = xRes_eq * yRes_eq;
 
   ofstream out("data.txt");
-  for (int y = 0; y < yRes; y++) { 
-    for (int x = 0; x < xRes; x++) 
+  for (int y = 0; y < yRes_eq; y++) { 
+    for (int x = 0; x < xRes_eq; x++) 
     {
       // get the color
       VEC4 color(0.0, 0.0, 0.0, 0.0);
-      vector<Ray> rays; 
-      cam.get_primary_rays_for_pixel(x, y, xRes, yRes, rays); 
-      for (auto r: rays) {
+      if (map_type == POSITION_MAP)
+      {
+        Ray r = cam.get_ray_for_pixel_corner(x, y, xRes_eq, yRes_eq);
         VEC3 rColor;
         bool intersected = true;
         SurfaceInteraction * si = rayColor(r, rColor, intersected);
-        if (intersected || !DELTA_TRANSMISSION) {
-          if (map_type == BENT_NORMAL_MAP) {
-            /**
-             * Bent normal is computed by integrating wi V <n, wi> over the upper 
-             * hemisphere. This is from: 
-             *  
-             *  "Practical Real-Time Strategies for Accurate Indirect Occlusion"
-             */
-            VEC3 pt = r.point_at_time(si->t);
-            VEC3 n  = si->prim->normal(VEC3(0.0, 0.0, 0.0));
-            VEC3 bent_normal(0.0, 0.0, 0.0); 
-            int total_sampled = 0;
-            for (int phi_i = 0; phi_i <= N_ANGLE; phi_i++) {
-              for (int theta_i = 0; theta_i < N_ANGLE; theta_i++) {
-                double phi = phi_i * (M_PI / 2) * (1.0 / 10); // [0, pi/2] upper hemisphere
-                double theta = theta_i * 2.0 * M_PI * (1.0 / 10);  // [0, 2pi)
-                VEC3 d(
-                  sin(phi) * cos(theta),
-                  sin(phi) * sin(theta), 
-                  cos(phi)
-                );
-                Ray sr(pt, d, 1, n); 
-                Real tMinFound = INF;
-                int pId = scene.ray_scene_intersect_idx(sr, tMinFound); 
-                double V = pId < 0 ? 1.0: 0.0; // if nothing intersecting then visible, else not
-                bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
-                total_sampled++; 
-                // out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
-              }
-            } 
-            color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2); 
-          } else {
-            color += to_hom(rColor); 
-          }
-        }
-        if (si != NULL) 
-          delete si;
+        if (intersected || !DELTA_TRANSMISSION) color = to_hom(rColor);
       }
-      color = color * (1.0 / ((Real) rays.size())); 
+      else
+      {
+        vector<Ray> rays; 
+        cam.get_primary_rays_for_pixel(x, y, xRes_eq, yRes_eq, rays); 
+        for (auto r: rays) {
+          VEC3 rColor;
+          bool intersected = true;
+          SurfaceInteraction * si = rayColor(r, rColor, intersected);
+          if (intersected || !DELTA_TRANSMISSION) {
+            if (map_type == BENT_NORMAL_MAP) {
+              /**
+               * Bent normal is computed by integrating wi V <n, wi> over the upper 
+               * hemisphere. This is from: 
+               *  
+               *  "Practical Real-Time Strategies for Accurate Indirect Occlusion"
+               */
+              VEC3 pt = r.point_at_time(si->t);
+              VEC3 n  = si->prim->normal(VEC3(0.0, 0.0, 0.0));
+              VEC3 bent_normal(0.0, 0.0, 0.0); 
+              int total_sampled = 0;
+              for (int phi_i = 0; phi_i <= N_ANGLE; phi_i++) {
+                for (int theta_i = 0; theta_i < N_ANGLE; theta_i++) {
+                  double phi = phi_i * (M_PI / 2) * (1.0 / 10); // [0, pi/2] upper hemisphere
+                  double theta = theta_i * 2.0 * M_PI * (1.0 / 10);  // [0, 2pi)
+                  VEC3 d(
+                    sin(phi) * cos(theta),
+                    sin(phi) * sin(theta), 
+                    cos(phi)
+                  );
+                  Ray sr(pt, d, 1, n); 
+                  Real tMinFound = INF;
+                  int pId = scene.ray_scene_intersect_idx(sr, tMinFound); 
+                  double V = pId < 0 ? 1.0: 0.0; // if nothing intersecting then visible, else not
+                  bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
+                  total_sampled++; 
+                  // out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                }
+              } 
+              color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2); 
+            } else {
+              color += to_hom(rColor); 
+            }
+          }
+          if (si != NULL) 
+            delete si;
+        }
+        color = color * (1.0 / ((Real) rays.size()));
+      } 
 
       // set, in final image
       im.set_color_4(y, x, color);
@@ -176,9 +196,9 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   string filename_txt = filename + ".txt";
   ofstream txtFile;
   txtFile.open(filename_txt);
-  for (int i = 0; i < xRes; i++)
+  for (int i = 0; i < xRes_eq; i++)
   {
-    for (int j = 0; j < yRes; j++)
+    for (int j = 0; j < yRes_eq; j++)
     {
       txtFile << colorArray[i][j][0] << " "
               << colorArray[i][j][1] << " "

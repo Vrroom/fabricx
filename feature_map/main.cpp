@@ -230,7 +230,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     {
       // get the color
       VEC4 color(0.0, 0.0, 0.0, 0.0);
-      if (map_type == POSITION_MAP) {
+      if (map_type == POSITION_MAP)
+      {
         Ray r = cam.get_ray_for_pixel_corner(x, y, xRes_eq, yRes_eq);
         VEC3 rColor;
         bool intersected = true;
