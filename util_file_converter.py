@@ -18,7 +18,7 @@ from PIL import Image
 if __name__ == "__main__":
   parser = argparse.ArgumentParser("File Converter")
   parser.add_argument("input_path", type=str, help="Path of the input file.")
-  parser.add_argument("output_path", type=str, default="temp.png", help="Path of the output file.")
+  parser.add_argument("output_path", type=str, help="Path of the output file.")
 
   args = parser.parse_args()
   input_path = args.input_path
@@ -43,7 +43,7 @@ if __name__ == "__main__":
   
   elif (input_path.endswith(".png")):
     if (output_path.endswith(".npy")):
-      im = Image.open(input_path)
+      im = Image.open(input_path).convert('RGB')
       nm = np.array(im, dtype=float)
       nm /= 255.0
       np.save(output_path, nm)

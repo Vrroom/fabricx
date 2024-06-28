@@ -520,10 +520,23 @@ class SurfaceBased (mi.BSDF) :
         self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('visibility_maps/bent_normal_map.png').convert('RGB')))))
         self.asg_params = mi.Texture2f(mi.TensorXf(np.load('visibility_maps/asg_params.npy')))
 
-        # nm = np.array(Image.open(normal_map_file).convert('RGB'))
-        # tm = np.array(Image.open(tangent_map_file).convert('RGB'))
-        nm = read_txt_feature_map(normal_map_file)
-        tm = read_txt_feature_map(tangent_map_file)
+        # Reading Normal Map
+        nm = None
+        if (normal_map_file.endswith(".png")):
+            nm = np.array(Image.open(normal_map_file).convert('RGB'), dtype=float)
+            nm /= 255.0
+        elif (normal_map_file.endswith(".txt")):
+            nm = read_txt_feature_map(normal_map_file)
+        else:
+            raise NotImplementedError("Normal map file must be .png or .txt")
+
+        # Reading Tangent Map
+        tm = None
+        if (tangent_map_file.endswith(".png")):
+            tm = np.array(Image.open(tangent_map_file).convert("RGB"), dtype=float)
+            tm /= 255.0
+        elif (tangent_map_file.endswith(".txt")):
+            tm = read_txt_feature_map(tangent_map_file)
 
         nm, tm = fix_normal_and_tangent_map(nm, tm)
 
