@@ -3,7 +3,7 @@ img.png
 *.o
 /feature_map/main
 /feature_map/visibility
-/demo_feature_maps/**/*.txt
+/unit_feature_maps/**/*.txt
 
 commands.txt
 

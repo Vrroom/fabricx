@@ -19,8 +19,8 @@
 
 using namespace std;
 
-int WINDOW_WIDTH = 1024;
-int WINDOW_HEIGHT = 1024;
+int WINDOW_WIDTH = 256;
+int WINDOW_HEIGHT = 256;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
 int N_TILE = 1;
@@ -259,6 +259,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     }
   }
   // detect whether there are some degenerate pixels 
+  // TODO: skipped for now since it seems to produce artifacts
+  /*
   if ((map_type == NORMAL_MAP || map_type == TANGENT_MAP) && !DELTA_TRANSMISSION) { 
     set<P> degenerate; 
     for (int y = 0; y < yRes_eq; y++) {
@@ -293,6 +295,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       }
     }
   }
+  */
   // Fix them.
   string filename_txt = filename + ".txt";
   ofstream txtFile;
