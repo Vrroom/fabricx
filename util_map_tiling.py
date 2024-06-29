@@ -7,7 +7,7 @@ output_path = "cloth/normal_map.png"
 
 normal_map_unit = read_txt_feature_map(input_path)
 
-times = 8
+times = 32
 normal_map = tile_feature_map(normal_map_unit, times)
 print(normal_map.shape)
 
