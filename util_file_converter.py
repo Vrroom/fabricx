@@ -21,11 +21,11 @@ if __name__ == "__main__":
   parser.add_argument("output_path", type=str, help="Path of the output file.")
 
   args = parser.parse_args()
-  input_path = args.input_path
+  input_path: str = args.input_path
   if (not (input_path.endswith(".txt") or input_path.endswith(".png") or input_path.endswith(".npy"))):
     raise RuntimeError("Input file must be txt, png, or npy")
 
-  output_path = args.output_path
+  output_path: str = args.output_path
   if (not (output_path.endswith(".txt") or output_path.endswith(".png") or output_path.endswith(".npy"))):
     raise RuntimeError("Output file must be txt, png, or npy")
 

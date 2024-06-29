@@ -11,7 +11,7 @@ if __name__ == "__main__":
   parser.add_argument("count", type=int, help="Number of pixels printed.")
 
   args = parser.parse_args()
-  png_path = args.path
+  png_path: str = args.path
 
   if (not png_path.endswith(".png")):
     raise RuntimeError("File name must end with .png")

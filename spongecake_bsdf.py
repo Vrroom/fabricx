@@ -509,9 +509,9 @@ class SurfaceBased (mi.BSDF) :
         self.delta_transmission = mi.Bool(delta_transmission)
 
         # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
-        texture_file = props['texture']
-        normal_map_file = props['normal_map']
-        tangent_map_file = props['tangent_map']
+        texture_file: str = props['texture']
+        normal_map_file: str = props['normal_map']
+        tangent_map_file: str = props['tangent_map']
 
         normal_map_file = normal_map if normal_map is not None else props['normal_map']
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
@@ -543,7 +543,7 @@ class SurfaceBased (mi.BSDF) :
         self.normal_map = mi.Texture2f(mi.TensorXf(nm))
         self.tangent_map = mi.Texture2f(mi.TensorXf(tm))
 
-        texture_map = np.array(Image.open(texture_file)) / 255.
+        texture_map = np.array(Image.open(texture_file)) / 255.0
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."

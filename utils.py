@@ -5,7 +5,7 @@ from more_itertools import take
 import drjit as dr
 from PIL import Image
 
-def read_txt_feature_map(path):
+def read_txt_feature_map(path: str):
     """
     Utility function that reads features maps that are stored as .txt files
     Return a numpy array
@@ -19,10 +19,10 @@ def read_txt_feature_map(path):
         vectors_np = np.array(vectors, dtype=float)
     return vectors_np
 
-def tile_feature_map(map: np.ndarray, times):
+def tile_feature_map(map: np.ndarray, times: int):
     return np.tile(map, (times, times, 1))
 
-def imgArrayToPIL (arr) :
+def imgArrayToPIL (arr: np.ndarray) :
     """ utility to convert img array to PIL """
     if arr.dtype in [np.float32, float] :
         arr = (arr * 255).astype(np.uint8)
@@ -32,7 +32,7 @@ def imgArrayToPIL (arr) :
     chanType = "RGBA" if arr.shape[2] == 4 else "RGB"
     return Image.fromarray(arr, chanType)
 
-def make_image_grid (images, row_major=True, gutter=True):
+def make_image_grid (images: list[Image.Image], row_major=True, gutter=True):
     """
     Make a large image where the images are stacked.
 
@@ -67,14 +67,14 @@ def make_image_grid (images, row_major=True, gutter=True):
                 cSum += (a.size[1] + gutter_width)
         return img
 
-def fix_map (n) : 
+def fix_map (n: np.ndarray) : 
     n = n.astype(float)
     n /= 255.0
     n = (2 * n) - 1.0
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     return n
 
-def fix_normal_and_tangent_map (n, t) : 
+def fix_normal_and_tangent_map (n: np.ndarray, t: np.ndarray) : 
     """ 
     n and t are numpy arrays that store normal and tangent vectors (supposed to be unit vectors). 
     [H, W, 3]
@@ -95,14 +95,14 @@ def fix_normal_and_tangent_map (n, t) :
 
     return n, t
 
-def save_map_to_img (m, path='img.png')  :
+def save_map_to_img (m: np.ndarray, path='img.png') :
     A = (m + 1) / 2
     Image.fromarray((A * 255.0).astype(np.uint8)).save(path)
 
 def half_vec (wi, wo) : 
     return (wi + wo) / dr.norm(wi + wo)
 
-def test_det_3_by_3  () :
+def test_det_3_by_3 () :
     import numpy as np
     for i in range(10): 
         mat = np.random.randn(3, 3)
@@ -120,11 +120,11 @@ def safe_rsqrt (x) :
 def sggx_sample(sh_frame, sample, s_mat) :
     k, j, i = 0, 1, 2
     m = mi.Matrix3f (sh_frame.s, sh_frame.t, sh_frame.n)
-    m = dr.transpose(m);
+    m = dr.transpose(m)
     s2 = m @ s_mat @ dr.transpose(m)
     inv_sqrt_s_ii = safe_rsqrt(s2[i, i])
     tmp = dr.safe_sqrt(s2[j, j] * s2[i, i] - s2[j, i] * s2[j, i])
-    m_k = mi.Vector3f(dr.safe_sqrt(dr.abs(dr.det(s2))) / tmp, 0., 0.);
+    m_k = mi.Vector3f(dr.safe_sqrt(dr.abs(dr.det(s2))) / tmp, 0., 0.)
     m_j = mi.Vector3f(-inv_sqrt_s_ii * (s2[k, i] * s2[j, i] - s2[k, j] * s2[i, i]) / tmp, inv_sqrt_s_ii * tmp, 0.)
     m_i = inv_sqrt_s_ii * mi.Vector3f(s2[k, i], s2[j, i], s2[i, i])
     uvw = mi.warp.square_to_cosine_hemisphere(sample)
@@ -141,7 +141,7 @@ def their_abs_det (s) :
     """ same as what I wrote, atleast for symmetric matrices """ 
     return dr.abs(s[0, 0] * s[1, 1] * s[2, 2] - s[0, 0] * s[1, 2] * s[1, 2] -
                           s[1, 1] * s[0, 2] * s[0, 2] - s[2, 2] * s[0, 1] * s[0, 1] +
-                          2. * s[0, 1] * s[0, 2] * s[1, 2]);
+                          2. * s[0, 1] * s[0, 2] * s[1, 2])
 
 def sggx_pdf(wm, s_mat) : 
     det_s = abs_det_3_by_3(s_mat)
