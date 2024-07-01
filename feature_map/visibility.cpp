@@ -171,7 +171,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                   double V = pId < 0 ? 1.0: 0.0; // if nothing intersecting then visible, else not
                   bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
                   total_sampled++; 
-                  // out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                  out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
                 }
               } 
               color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2); 

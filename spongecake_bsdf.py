@@ -551,7 +551,7 @@ class SurfaceBased (mi.BSDF) :
         self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        tiles = 64
+        tiles = 128
         tiled_uv = (si.uv * tiles) - dr.trunc(si.uv * tiles)
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
