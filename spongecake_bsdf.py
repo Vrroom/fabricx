@@ -552,19 +552,19 @@ class SurfaceBased (mi.BSDF) :
 
     def sample (self, ctx, si, sample1, sample2, active) : 
         tiles = 64
-        uv = (si.uv * tiles) - dr.trunc(si.uv * tiles)
+        tiled_uv = (si.uv * tiles) - dr.trunc(si.uv * tiles)
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.))
 
-        # bent_normal = mi.Vector3f(self.bent_normal_map.eval(uv))
-        # asg_params = mi.Vector3f(self.asg_params.eval(uv))
+        # bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
+        # asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
 
-        normal = mi.Vector3f(self.normal_map.eval(uv))
-        tangent = mi.Vector3f(self.tangent_map.eval(uv))
+        normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
+        tangent = mi.Vector3f(self.tangent_map.eval(tiled_uv))
 
-        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(uv))
+        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
         selected_dt = sample1 > delta_transmission.x
         
         normal = normal / dr.norm(normal)
@@ -599,7 +599,7 @@ class SurfaceBased (mi.BSDF) :
         wo = dr.select(selected_dt, wo_dt, wo)
         pdf = dr.select(selected_dt, pdf_dt, pdf)
 
-        color = mi.Color3f(self.texture.eval(uv)) 
+        color = mi.Color3f(self.texture.eval(si.uv))    # texture uses original uv
         F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
