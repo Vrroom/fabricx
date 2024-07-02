@@ -290,9 +290,12 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                   out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
                 }
               }
+              color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2);
             }
             else color += to_hom(rColor); 
           }
+          if (si != NULL) 
+            delete si;
         }
         color = color * (1.0 / ((Real) rays.size())); 
       }
