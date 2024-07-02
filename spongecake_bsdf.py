@@ -517,8 +517,8 @@ class SurfaceBased (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('visibility_maps/bent_normal_map.png').convert('RGB')))))
-        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('visibility_maps/asg_params.npy')))
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cylinder/bent_normal_map.png').convert('RGB')))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cylinder/asg_params.npy')))
 
         # Reading Normal Map
         nm = None
@@ -557,9 +557,6 @@ class SurfaceBased (mi.BSDF) :
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.))
-
-        # bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
-        # asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
 
         normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
         tangent = mi.Vector3f(self.tangent_map.eval(tiled_uv))
@@ -622,14 +619,17 @@ class SurfaceBased (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
-        # NOTE: removed visibility testing here, please use SpongeCake for that instead
         # EXPERIMENT WITH VISIBILITY
-        # di = euclidean_to_spherical_dr(si.wi) 
-        # do = euclidean_to_spherical_dr(wo) 
-        # bent_normal = bent_normal / dr.norm(bent_normal)
-        # mu = euclidean_to_spherical_dr(bent_normal)
-        # V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-        # V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
+        VISIBILITY = False
+        if VISIBILITY:
+            bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
+            asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
+            di = euclidean_to_spherical_dr(si.wi) 
+            do = euclidean_to_spherical_dr(wo) 
+            bent_normal = bent_normal / dr.norm(bent_normal)
+            mu = euclidean_to_spherical_dr(bent_normal)
+            V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+            V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
         # v_threshold = 0.5
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) # & (V_i > v_threshold) & (V_o > v_threshold)
@@ -657,6 +657,8 @@ class SurfaceBased (mi.BSDF) :
 
         s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
         f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
+        if VISIBILITY:
+            f_surface_based_micro *= (V_i * V_o)
 
         ####################################################
         ## Meso-scale BSDF
