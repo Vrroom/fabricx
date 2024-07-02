@@ -520,6 +520,8 @@ class SurfaceBased (mi.BSDF) :
         self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cylinder/bent_normal_map.png').convert('RGB')))))
         self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cylinder/asg_params.npy')))
 
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cylinder/normal_512.png').convert('RGB'))))
+
         # Reading Normal Map
         nm = None
         if (normal_map_file.endswith(".png")):
@@ -619,17 +621,15 @@ class SurfaceBased (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
-        # EXPERIMENT WITH VISIBILITY
-        VISIBILITY = False
-        if VISIBILITY:
-            bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
-            asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
-            di = euclidean_to_spherical_dr(si.wi) 
-            do = euclidean_to_spherical_dr(wo) 
-            bent_normal = bent_normal / dr.norm(bent_normal)
-            mu = euclidean_to_spherical_dr(bent_normal)
-            V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-            V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
+        # VISIBILITY
+        bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
+        asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
+        di = euclidean_to_spherical_dr(si.wi) 
+        do = euclidean_to_spherical_dr(wo) 
+        bent_normal = bent_normal / dr.norm(bent_normal)
+        mu = euclidean_to_spherical_dr(bent_normal)
+        V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
         # v_threshold = 0.5
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) # & (V_i > v_threshold) & (V_o > v_threshold)
@@ -650,23 +650,36 @@ class SurfaceBased (mi.BSDF) :
             (color / math.pi) * (
                 self.w * (clamped_dot(diffuse_sign * si.wi, normal) / clamp_to_nonnegative(diffuse_sign * cos_theta_i)) +
                 (1.0 - self.w)
-            ) * dr.abs(cos_theta_o)
-            # multiplied by the cosine foreshortening factor, as in Mitsuba's documentation:
-            # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
+            )
         )
 
         s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
         f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
-        if VISIBILITY:
-            f_surface_based_micro *= (V_i * V_o)
 
         ####################################################
         ## Meso-scale BSDF
-        ## TODO
+        ## TODO: first attempt
+        n_s = mi.Vector3f(0.0, 0.0, 1.0)    # surface normal
+        n_f = mi.Vector3f(self.normal_mipmap.eval(tiled_uv))
+        A_p = (clamped_dot(wo, normal)/clamped_dot(n_s, normal)) * V_o
+        A_g = clamped_dot(wo, n_f)/clamped_dot(n_s, n_f)
+        f_p = f_surface_based_micro * clamped_dot(normal, si.wi) * V_i * A_p
+
+        threshold = 0.01
+        f_surface_based_meso = dr.select(
+            dr.any(dr.llvm.Array3b(clamped_dot(n_s, normal) <= threshold, clamped_dot(n_s, n_f) <= threshold, A_g <= threshold)),
+            mi.Color3f(0.0, 0.0, 0.0),
+            f_p / A_g   # k_p and pdf cancels out when uniform           
+        )
+
+        f_overall = f_surface_based_meso
+        f_overall *= dr.abs(cos_theta_o)
+        # multiplied by the cosine foreshortening factor, as in Mitsuba's documentation:
+        # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
 
         perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
-        weight = (f_surface_based_micro / bs.pdf) * perturb_weight
+        weight = (f_overall / bs.pdf) * perturb_weight
         weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 
