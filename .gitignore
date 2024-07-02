@@ -1,9 +1,10 @@
 img.png
 
 *.o
-/feature_map/main
-/feature_map/visibility
-/unit_feature_maps/**/*.txt
+feature_map/main
+feature_map/visibility
+unit_feature_maps/**/*.txt
+mipmaps/
 
 commands.txt
 

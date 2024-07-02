@@ -15,10 +15,10 @@ def is_power_of_two(x):
         return True
     return is_power_of_two(x/2)
 
-input_path = "normal_map.txt"
 output_path = "mipmaps/"
 
-normal_map = read_txt_feature_map(input_path)
+normal_map = np.array(Image.open("normal_map.png").convert('RGB'))
+# normal_map = read_txt_feature_map("normal_map.txt")
 normal_map_shape = normal_map.shape
 if normal_map_shape[0] != normal_map_shape[1]:
     raise RuntimeError("Incorrect normal map shape: it should be square.")
