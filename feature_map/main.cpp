@@ -19,11 +19,12 @@
 
 using namespace std;
 
-int WINDOW_WIDTH = 256;
-int WINDOW_HEIGHT = 256;
+int WINDOW_WIDTH = 128;
+int WINDOW_HEIGHT = 128;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
 int N_TILE = 1;
+int N_ANGLE = 10;
 
 double R = 10; 
 double PHI = M_PI / 3;
@@ -149,6 +150,7 @@ enum FeatureMapType {
   POSITION_MAP,
   NORMAL_MAP, 
   TANGENT_MAP, 
+  BENT_NORMAL_MAP,
   INVALID_MAP
 };
 
@@ -165,9 +167,16 @@ OrthographicCamera cam(
 // scene geometry
 LBVH scene;
 
+struct SurfaceInteraction {
+  Primitive *prim; 
+  Real t;
+  SurfaceInteraction (Primitive *prim, Real t) 
+    : prim(prim), t(t) {}
+};
+
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
-void rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
+SurfaceInteraction * rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
   pixelColor = VEC3(0.0, 0.0, 0.0);
   // look for intersection with scene
   Real tMinFound = INF;
@@ -175,9 +184,11 @@ void rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
   if (pId >= 0) {
     Primitive *prim = scene.scene[pId];
     pixelColor = prim->get_color(); 
+    return new SurfaceInteraction(prim, tMinFound);
   } else {
     intersected = false;
   }
+  return NULL;
 }
 
 VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, FeatureMapType map_type) { 
@@ -223,8 +234,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   // allocate the final image
   const int totalCells = xRes_eq * yRes_eq;
 
+  ofstream out("data.txt");
   // compute image plane
-  #pragma omp parallel for collapse(2)
   for (int y = 0; y < yRes_eq; y++) { 
     for (int x = 0; x < xRes_eq; x++) 
     {
@@ -235,7 +246,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
         Ray r = cam.get_ray_for_pixel_corner(x, y, xRes_eq, yRes_eq);
         VEC3 rColor;
         bool intersected = true;
-        rayColor(r, rColor, intersected);
+        SurfaceInteraction * si = rayColor(r, rColor, intersected);
         if (intersected || !DELTA_TRANSMISSION)
           color = to_hom(rColor);
       }
@@ -246,9 +257,42 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
         for (auto r: rays) {
           VEC3 rColor;
           bool intersected = true;
-          rayColor(r, rColor, intersected);
-          if (intersected || !DELTA_TRANSMISSION) 
-            color += to_hom(rColor); 
+          SurfaceInteraction * si = rayColor(r, rColor, intersected);
+          if (intersected || !DELTA_TRANSMISSION)
+          {
+            if (map_type == BENT_NORMAL_MAP)
+            {
+              /**
+               * Bent normal is computed by integrating wi V <n, wi> over the upper 
+               * hemisphere. This is from: 
+               *  
+               *  "Practical Real-Time Strategies for Accurate Indirect Occlusion"
+               */
+              VEC3 pt = r.point_at_time(si->t);
+              VEC3 n  = si->prim->normal(VEC3(0.0, 0.0, 0.0));
+              VEC3 bent_normal(0.0, 0.0, 0.0); 
+              int total_sampled = 0;
+              for (int phi_i = 0; phi_i <= N_ANGLE; phi_i++) {
+                for (int theta_i = 0; theta_i < N_ANGLE; theta_i++) {
+                  double phi = phi_i * (M_PI / 2) * (1.0 / 10); // [0, pi/2] upper hemisphere
+                  double theta = theta_i * 2.0 * M_PI * (1.0 / 10);  // [0, 2pi)
+                  VEC3 d(
+                    sin(phi) * cos(theta),
+                    sin(phi) * sin(theta), 
+                    cos(phi)
+                  );
+                  Ray sr(pt, d, 1, n); 
+                  Real tMinFound = INF;
+                  int pId = scene.ray_scene_intersect_idx(sr, tMinFound); 
+                  double V = pId < 0 ? 1.0: 0.0; // if nothing intersecting then visible, else not
+                  bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
+                  total_sampled++; 
+                  out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                }
+              }
+            }
+            else color += to_hom(rColor); 
+          }
         }
         color = color * (1.0 / ((Real) rays.size())); 
       }
@@ -257,6 +301,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       im.set_color_4(y, x, color);
       colorArray[x][y] = color;
     }
+    if (map_type == BENT_NORMAL_MAP) cout << "bent normal map processed " << y+1 << " rows" << endl;
   }
   // detect whether there are some degenerate pixels 
   // TODO: skipped for now since it seems to produce artifacts
@@ -425,8 +470,8 @@ int main(int argc, char* argv[]) {
   file_path = result["file-path"].as<string>(); 
 
   FilamentMap fil_map = readFilamentMap(file_path); 
-  vector<FeatureMapType> types = { POSITION_MAP, NORMAL_MAP, TANGENT_MAP, ID_MAP }; 
-  vector<string> names = { "position_map", "normal_map", "tangent_map", "id_map" }; 
+  vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, POSITION_MAP, BENT_NORMAL_MAP }; 
+  vector<string> names = { "normal_map", "tangent_map", "id_map", "position_map", "bent_normal_map" }; 
   for (int i = 0; i < types.size(); i++) {
     renderMapType(fil_map, types[i], names[i]);
   }
