@@ -642,37 +642,34 @@ class SurfaceBased (mi.BSDF) :
         # NOTE: the previous version (in JinSpongeCake) is
         # f_diffuse = (color / dr.pi) * (self.w * dr.abs(cos_theta_i / (dr.dot(si.wi, normal))) + (1 - self.w)) * dr.abs(cos_theta_o)
         # TODO: check the numerator and denominator, as it is different in the two papers (Jin and SurfaceBased)
-        # TODO: now the case of denominator <=0 before clamping is ignored, otherwise it will result in division by 0
+        # TODO: seems too bright and have some artifacts after abs dot changes? possibly from transmission part
+        threshold_diffuse = 0.005   # avoid division of near-zero values
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
-        f_diffuse = dr.select(
-            dr.abs(diffuse_sign * cos_theta_i) <= 0.01, # TODO: artifacts in diffuse part when this is set to <= 0
-            mi.Color3f(0.0, 0.0, 0.0),
-            (color / math.pi) * (
-                self.w * (abs_dot(diffuse_sign * si.wi, normal) / dr.abs(diffuse_sign * cos_theta_i)) +
-                (1.0 - self.w)
-            )
+        abs_in = dr.abs(diffuse_sign * cos_theta_i)
+        abs_in = dr.maximum(threshold_diffuse, abs_in)
+        # TODO: diffuse albedo
+        f_diffuse = (color / math.pi) * (
+            self.w * (abs_dot(diffuse_sign * si.wi, normal) / abs_in) +
+            (1.0 - self.w)
         )
-
         s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
         f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
 
         ####################################################
         ## Meso-scale BSDF
         ## TODO: first attempt
+        threshold_meso = 0.005      # avoid division of near-zero values
         n_s = mi.Vector3f(0.0, 0.0, 1.0)    # surface normal
         n_f = mi.Vector3f(self.normal_mipmap.eval(tiled_uv))
         abs_ns_np = abs_dot(n_s, normal)
+        abs_ns_np = dr.maximum(threshold_meso, abs_ns_np)
         abs_ns_nf = abs_dot(n_s, n_f)
+        abs_ns_nf = dr.maximum(threshold_meso, abs_ns_nf)
         A_p = (abs_dot(wo, normal)/abs_ns_np) * V_o
         A_g = abs_dot(wo, n_f)/abs_ns_nf
+        A_g = dr.maximum(threshold_meso, A_g)
         f_p = f_surface_based_micro * abs_dot(normal, si.wi) * V_i * A_p
-
-        threshold = 0.01
-        f_surface_based_meso = dr.select(
-            dr.any(dr.llvm.Array3b(abs_ns_np <= threshold, abs_ns_nf <= threshold, A_g <= threshold)),
-            mi.Color3f(0.0, 0.0, 0.0),
-            f_p / A_g   # k_p and pdf cancels out when uniform           
-        )
+        f_surface_based_meso = f_p / A_g    # k_p and pdf cancels out when uniform
 
         f_overall = f_surface_based_meso
         f_overall *= dr.abs(cos_theta_o)
