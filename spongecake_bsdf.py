@@ -645,10 +645,10 @@ class SurfaceBased (mi.BSDF) :
         # TODO: now the case of denominator <=0 before clamping is ignored, otherwise it will result in division by 0
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
         f_diffuse = dr.select(
-            diffuse_sign * cos_theta_i <= 0.01, # TODO: artifacts in diffuse part when this is set to <= 0
+            dr.abs(diffuse_sign * cos_theta_i) <= 0.01, # TODO: artifacts in diffuse part when this is set to <= 0
             mi.Color3f(0.0, 0.0, 0.0),
             (color / math.pi) * (
-                self.w * (clamped_dot(diffuse_sign * si.wi, normal) / clamp_to_nonnegative(diffuse_sign * cos_theta_i)) +
+                self.w * (abs_dot(diffuse_sign * si.wi, normal) / dr.abs(diffuse_sign * cos_theta_i)) +
                 (1.0 - self.w)
             )
         )
@@ -661,13 +661,15 @@ class SurfaceBased (mi.BSDF) :
         ## TODO: first attempt
         n_s = mi.Vector3f(0.0, 0.0, 1.0)    # surface normal
         n_f = mi.Vector3f(self.normal_mipmap.eval(tiled_uv))
-        A_p = (clamped_dot(wo, normal)/clamped_dot(n_s, normal)) * V_o
-        A_g = clamped_dot(wo, n_f)/clamped_dot(n_s, n_f)
-        f_p = f_surface_based_micro * clamped_dot(normal, si.wi) * V_i * A_p
+        abs_ns_np = abs_dot(n_s, normal)
+        abs_ns_nf = abs_dot(n_s, n_f)
+        A_p = (abs_dot(wo, normal)/abs_ns_np) * V_o
+        A_g = abs_dot(wo, n_f)/abs_ns_nf
+        f_p = f_surface_based_micro * abs_dot(normal, si.wi) * V_i * A_p
 
         threshold = 0.01
         f_surface_based_meso = dr.select(
-            dr.any(dr.llvm.Array3b(clamped_dot(n_s, normal) <= threshold, clamped_dot(n_s, n_f) <= threshold, A_g <= threshold)),
+            dr.any(dr.llvm.Array3b(abs_ns_np <= threshold, abs_ns_nf <= threshold, A_g <= threshold)),
             mi.Color3f(0.0, 0.0, 0.0),
             f_p / A_g   # k_p and pdf cancels out when uniform           
         )
