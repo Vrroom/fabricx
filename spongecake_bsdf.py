@@ -574,14 +574,13 @@ class SurfaceBased (mi.BSDF) :
         ####################################################
         ## Micro-scale BSDF
 
+        specular_or_diffuse = sample1 < (1.0 - self.alpha)  # TODO: maybe additional parameter here
+
         ################################
         ## Specular Terms
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
-
         S = rotate_s_mat(S, normal, tangent)
-
-        specular_or_diffuse = sample1 < 1.0
 
         h, D, wo, pdf = sample_specular(sample2, si.wi, S)
         h_, D_, wo_, pdf_ = sample_diffuse(self.pcg, sample2, si.wi, S)
@@ -638,22 +637,18 @@ class SurfaceBased (mi.BSDF) :
 
         ################################
         ## Diffuse Terms
-        
-        # NOTE: the previous version (in JinSpongeCake) is
-        # f_diffuse = (color / dr.pi) * (self.w * dr.abs(cos_theta_i / (dr.dot(si.wi, normal))) + (1 - self.w)) * dr.abs(cos_theta_o)
+
         # TODO: check the numerator and denominator, as it is different in the two papers (Jin and SurfaceBased)
-        # TODO: seems too bright and have some artifacts after abs dot changes? possibly from transmission part
-        threshold_diffuse = 0.005   # avoid division of near-zero values
+        threshold_diffuse = 0.01    # avoid division of near-zero values
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
         abs_in = dr.abs(diffuse_sign * cos_theta_i)
         abs_in = dr.maximum(threshold_diffuse, abs_in)
-        # TODO: diffuse albedo
-        f_diffuse = (color / math.pi) * (
+        f_diffuse = (F / math.pi) * (
             self.w * (abs_dot(diffuse_sign * si.wi, normal) / abs_in) +
             (1.0 - self.w)
         )
-        s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
-        f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
+
+        f_surface_based_micro = dr.select(specular_or_diffuse, f_sponge_cake, f_diffuse)
 
         ####################################################
         ## Meso-scale BSDF
