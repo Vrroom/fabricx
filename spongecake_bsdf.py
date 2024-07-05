@@ -517,8 +517,10 @@ class SurfaceBased (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('visibility_maps/bent_normal_map.png').convert('RGB')))))
-        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('visibility_maps/asg_params.npy')))
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cylinder/bent_normal_map.png').convert('RGB')))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cylinder/asg_params.npy')))
+
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cylinder/normal_512.png').convert('RGB'))))
 
         # Reading Normal Map
         nm = None
@@ -558,9 +560,6 @@ class SurfaceBased (mi.BSDF) :
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
         S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.))
 
-        # bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
-        # asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
-
         normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
         tangent = mi.Vector3f(self.tangent_map.eval(tiled_uv))
 
@@ -575,14 +574,13 @@ class SurfaceBased (mi.BSDF) :
         ####################################################
         ## Micro-scale BSDF
 
+        specular_or_diffuse = sample1 < (1.0 - self.alpha)  # TODO: maybe additional parameter here
+
         ################################
         ## Specular Terms
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
-
         S = rotate_s_mat(S, normal, tangent)
-
-        specular_or_diffuse = sample1 < 1.0
 
         h, D, wo, pdf = sample_specular(sample2, si.wi, S)
         h_, D_, wo_, pdf_ = sample_diffuse(self.pcg, sample2, si.wi, S)
@@ -622,14 +620,15 @@ class SurfaceBased (mi.BSDF) :
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.GlossyReflection), mi.UInt32(+mi.BSDFFlags.GlossyTransmission)))
         bs.pdf = pdf 
 
-        # NOTE: removed visibility testing here, please use SpongeCake for that instead
-        # EXPERIMENT WITH VISIBILITY
-        # di = euclidean_to_spherical_dr(si.wi) 
-        # do = euclidean_to_spherical_dr(wo) 
-        # bent_normal = bent_normal / dr.norm(bent_normal)
-        # mu = euclidean_to_spherical_dr(bent_normal)
-        # V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-        # V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
+        # VISIBILITY
+        bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
+        asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
+        di = euclidean_to_spherical_dr(si.wi) 
+        do = euclidean_to_spherical_dr(wo) 
+        bent_normal = bent_normal / dr.norm(bent_normal)
+        mu = euclidean_to_spherical_dr(bent_normal)
+        V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
+        V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
         # v_threshold = 0.5
         active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0) # & (V_i > v_threshold) & (V_o > v_threshold)
@@ -638,33 +637,43 @@ class SurfaceBased (mi.BSDF) :
 
         ################################
         ## Diffuse Terms
-        
-        # NOTE: the previous version (in JinSpongeCake) is
-        # f_diffuse = (color / dr.pi) * (self.w * dr.abs(cos_theta_i / (dr.dot(si.wi, normal))) + (1 - self.w)) * dr.abs(cos_theta_o)
+
         # TODO: check the numerator and denominator, as it is different in the two papers (Jin and SurfaceBased)
-        # TODO: now the case of denominator <=0 before clamping is ignored, otherwise it will result in division by 0
+        threshold_diffuse = 0.01    # avoid division of near-zero values
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
-        f_diffuse = dr.select(
-            diffuse_sign * cos_theta_i <= 0.01, # TODO: artifacts in diffuse part when this is set to <= 0
-            mi.Color3f(0.0, 0.0, 0.0),
-            (color / math.pi) * (
-                self.w * (clamped_dot(diffuse_sign * si.wi, normal) / clamp_to_nonnegative(diffuse_sign * cos_theta_i)) +
-                (1.0 - self.w)
-            ) * dr.abs(cos_theta_o)
-            # multiplied by the cosine foreshortening factor, as in Mitsuba's documentation:
-            # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
+        abs_in = dr.abs(diffuse_sign * cos_theta_i)
+        abs_in = dr.maximum(threshold_diffuse, abs_in)
+        f_diffuse = (F / math.pi) * (
+            self.w * (abs_dot(diffuse_sign * si.wi, normal) / abs_in) +
+            (1.0 - self.w)
         )
 
-        s_weight = 0.5 # TODO: think about the weights here; should the two parts add over 1?
-        f_surface_based_micro = s_weight * f_sponge_cake + (1.0 - s_weight) * f_diffuse
+        f_surface_based_micro = dr.select(specular_or_diffuse, f_sponge_cake, f_diffuse)
 
         ####################################################
         ## Meso-scale BSDF
-        ## TODO
+        ## TODO: first attempt
+        threshold_meso = 0.005      # avoid division of near-zero values
+        n_s = mi.Vector3f(0.0, 0.0, 1.0)    # surface normal
+        n_f = mi.Vector3f(self.normal_mipmap.eval(tiled_uv))
+        abs_ns_np = abs_dot(n_s, normal)
+        abs_ns_np = dr.maximum(threshold_meso, abs_ns_np)
+        abs_ns_nf = abs_dot(n_s, n_f)
+        abs_ns_nf = dr.maximum(threshold_meso, abs_ns_nf)
+        A_p = (abs_dot(wo, normal)/abs_ns_np) * V_o
+        A_g = abs_dot(wo, n_f)/abs_ns_nf
+        A_g = dr.maximum(threshold_meso, A_g)
+        f_p = f_surface_based_micro * abs_dot(normal, si.wi) * V_i * A_p
+        f_surface_based_meso = f_p / A_g    # k_p and pdf cancels out when uniform
+
+        f_overall = f_surface_based_meso
+        f_overall *= dr.abs(cos_theta_o)
+        # multiplied by the cosine foreshortening factor, as in Mitsuba's documentation:
+        # https://mitsuba.readthedocs.io/en/latest/src/api_reference.html#mitsuba.BSDF.sample
 
         perturb_weight = dr.select(self.perturb_specular, -dr.log(1.0 - self.pcg.next_float32()), 1.0)
         
-        weight = (f_surface_based_micro / bs.pdf) * perturb_weight
+        weight = (f_overall / bs.pdf) * perturb_weight
         weight = dr.select(selected_dt, mi.Color3f(1.0, 1.0, 1.0), weight)
         active = active & (dr.all(dr.isfinite(weight)))
         weight = weight & active 

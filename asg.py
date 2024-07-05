@@ -6,7 +6,9 @@ import torch.optim as optim
 import numpy as np 
 import drjit as dr
 from collections import defaultdict
+from utils import read_txt_feature_map
 
+MAP_DIM = 128
 VIS = True
 
 def dot_torch (a, b) : 
@@ -245,7 +247,7 @@ if __name__ == "__main__":
             y, x, phi, theta, V = int(y), int(x), float(phi), float(theta), float(V) 
             data[(y,x)].append((phi, theta, V))
     
-    data_ten = np.ones((128, 128, 110, 3)) 
+    data_ten = np.ones((MAP_DIM, MAP_DIM, 110, 3)) 
     for k, v in data.items(): 
         y, x = k  
         data_ten[x, y, ...] = np.array(v)
@@ -262,15 +264,16 @@ if __name__ == "__main__":
     with torch.cuda.device('cuda') :
         data_ten = torch.from_numpy(data_ten)
 
-        normals = torch.from_numpy((np.array(Image.open('bent_normal_map_128.png').convert('RGB')) / 255.) * 2 - 1)
+        # normals = torch.from_numpy((np.array(Image.open('bent_normal_map.png').convert('RGB')) / 255.) * 2 - 1)
+        normals = read_txt_feature_map("bent_normal_map.txt")
         normals = normals / torch.norm(normals, dim=-1, keepdim=True)
         # now simple optimization loop 
         mu_init = euclidean_to_spherical(normals)
         mu = torch.nn.Parameter(torch.clone(mu_init))
-        gamma = torch.nn.Parameter(torch.zeros(128, 128))
-        log_sigma_x = torch.nn.Parameter(torch.zeros(128, 128))
-        log_sigma_y = torch.nn.Parameter(torch.zeros(128, 128))
-        C = torch.ones(128, 128)
+        gamma = torch.nn.Parameter(torch.zeros(MAP_DIM, MAP_DIM))
+        log_sigma_x = torch.nn.Parameter(torch.zeros(MAP_DIM, MAP_DIM))
+        log_sigma_y = torch.nn.Parameter(torch.zeros(MAP_DIM, MAP_DIM))
+        C = torch.ones(MAP_DIM, MAP_DIM)
 
         params = [gamma, log_sigma_x, log_sigma_y]
         opt = optim.Adam(params, lr=1e-1) 
@@ -278,8 +281,8 @@ if __name__ == "__main__":
         for i in range(500) : 
             opt.zero_grad()
 
-            indices = torch.randint(0, 110, (128, 128), dtype=torch.long)
-            selected = data_ten[torch.arange(128).unsqueeze(1), torch.arange(128), indices]
+            indices = torch.randint(0, 110, (MAP_DIM, MAP_DIM), dtype=torch.long)
+            selected = data_ten[torch.arange(MAP_DIM).unsqueeze(1), torch.arange(MAP_DIM), indices]
 
             d = selected[..., :2]
             V = selected[..., 2].bool()
@@ -309,18 +312,17 @@ if __name__ == "__main__":
             opt.step()
 
         params = torch.stack((gamma, log_sigma_x, log_sigma_y), dim=-1).detach().cpu().numpy()
-        #np.save('asg_params.npy', params)
-        
+        np.save('asg_params.npy', params)
+
         if VIS :
             with torch.no_grad() : 
                 for phi_i in range(11):
                     for theta_i in range(10): 
                         phi = phi_i * (math.pi / 2) * (1.0 / 10); 
                         theta = theta_i * 2 * math.pi * (1.0 / 10); 
-                        d = np.ones((128, 128, 2))
+                        d = np.ones((MAP_DIM, MAP_DIM, 2))
                         d[..., 0] = phi
                         d[..., 1] = theta
                         d = torch.from_numpy (d)
                         pred = asg_torch(mu, gamma, log_sigma_x, log_sigma_y, C, d).detach().cpu().numpy()
                         Image.fromarray((pred * 255).astype(np.uint8), mode='L').save(f'vis/pred_{phi:.2f}_{theta:.2f}.png')
-
