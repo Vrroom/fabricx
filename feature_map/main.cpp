@@ -185,9 +185,8 @@ SurfaceInteraction * rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
     Primitive *prim = scene.scene[pId];
     pixelColor = prim->get_color(); 
     return new SurfaceInteraction(prim, tMinFound);
-  } else {
-    intersected = false;
-  }
+  } 
+  intersected = false;
   return NULL;
 }
 
@@ -260,7 +259,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
           SurfaceInteraction * si = rayColor(r, rColor, intersected);
           if (intersected || !DELTA_TRANSMISSION)
           {
-            if (map_type == BENT_NORMAL_MAP)
+            if ((map_type == BENT_NORMAL_MAP) && intersected)
             {
               /**
                * Bent normal is computed by integrating wi V <n, wi> over the upper 
@@ -269,7 +268,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                *  "Practical Real-Time Strategies for Accurate Indirect Occlusion"
                */
               VEC3 pt = r.point_at_time(si->t);
-              VEC3 n  = si->prim->normal(VEC3(0.0, 0.0, 0.0));
+              VEC3 n  = si->prim->normal(VEC3(0.0, 0.0, 0.0)); 
+              n = n * sign(n(2)); // ensure normal faces +z
               VEC3 bent_normal(0.0, 0.0, 0.0); 
               int total_sampled = 0;
               for (int phi_i = 0; phi_i <= N_ANGLE; phi_i++) {
