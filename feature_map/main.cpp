@@ -215,6 +215,18 @@ VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, Fea
 //////////////////////////////////////////////////////////////////////////////////
 void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &map_type) 
 {
+  /**
+   * Get the number of threads and create buffers for storing per pixel
+   * visibility. This greatly speeds up the performance of our parallel 
+   * program.
+   */
+  int num_threads;
+  #pragma omp parallel 
+  {
+    num_threads = omp_get_num_threads(); 
+  }
+  vector<ostringstream> buffers(num_threads);
+
   int xRes_eq = xRes;
   int yRes_eq = yRes;
   if (map_type == POSITION_MAP)
@@ -233,8 +245,9 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   // allocate the final image
   const int totalCells = xRes_eq * yRes_eq;
 
-  ofstream out("data.txt");
+
   // compute image plane
+  #pragma omp parallel for collapse(2)
   for (int y = 0; y < yRes_eq; y++) { 
     for (int x = 0; x < xRes_eq; x++) 
     {
@@ -287,7 +300,10 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                   double V = pId < 0 ? 1.0: 0.0; // if nothing intersecting then visible, else not
                   bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
                   total_sampled++; 
-                  out << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+
+                  // write the visibility data to the correct buffer
+                  int tid = omp_get_thread_num();
+                  buffers[tid] << y << " " << x << " " << phi << " " << theta << " " << V << endl;
                 }
               }
               color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2);
@@ -304,7 +320,6 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       im.set_color_4(y, x, color);
       colorArray[x][y] = color;
     }
-    if (map_type == BENT_NORMAL_MAP) cout << "bent normal map processed " << y+1 << " rows" << endl;
   }
   // detect whether there are some degenerate pixels 
   // TODO: skipped for now since it seems to produce artifacts
@@ -344,6 +359,14 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
     }
   }
   */
+
+  // dump the visibility data to file
+  ofstream out("data.txt");
+  for (int i = 0; i < num_threads; i++) {
+    out << buffers[i].str();
+  }
+  out.close();
+
   // Fix them.
   string filename_txt = filename + ".txt";
   ofstream txtFile;
