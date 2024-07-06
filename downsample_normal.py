@@ -17,8 +17,8 @@ def is_power_of_two(x):
 
 output_path = "mipmaps/"
 
-normal_map = np.array(Image.open("normal_map.png").convert('RGB'))
-# normal_map = read_txt_feature_map("normal_map.txt")
+normal_map = (np.array(Image.open("normal_map.png").convert("RGB")) / 255.0) * 2.0 - 1.0
+# normal_map = read_txt_feature_map("normal_map.txt") * 2.0 - 1.0
 normal_map_shape = normal_map.shape
 if normal_map_shape[0] != normal_map_shape[1]:
     raise RuntimeError("Incorrect normal map shape: it should be square.")
@@ -41,7 +41,7 @@ while (cur_dim >= 1):
     cur_size *= 2
 
 DIM_SAVE_VEC = 3
-maps = [normal_map]
+# maps = [normal_map]
 for dim, size in zip(dims, sizes):
     cur_map = np.zeros((dim, dim, DIM_SAVE_VEC))
     for i1 in np.arange(dim):
@@ -53,6 +53,7 @@ for dim, size in zip(dims, sizes):
             cur_avg = cur_sum / float(size**2)
             cur_map[i1][j1] = cur_avg / np.linalg.norm(cur_avg)
 
+    # Previous Implementation:
     # prev_map = maps[-1]
     # for i in np.arange(dim):
     #     for j in np.arange(dim):
@@ -65,5 +66,5 @@ for dim, size in zip(dims, sizes):
     # maps.append(cur_map)
     # cur_map_normalized = cur_map / np.linalg.norm(cur_map, axis=-1)[:,:,None]   # only normalize when storing, to avoid incorrect averaging
     # np.save(output_path + "normal_" + str(dim) + ".npy", cur_map)
-    im = Image.fromarray(np.uint8(cur_map * 255.0))
+    im = Image.fromarray(np.uint8(((cur_map + 1.0) / 2.0) * 255.0))
     im.save(output_path + "normal_" + str(dim) + ".png")
