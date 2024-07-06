@@ -719,7 +719,7 @@ struct OrthographicCamera : public Camera {
 
   OrthographicCamera(Rectangle rect) : rect(rect) {}
 
-  void get_primary_rays_for_pixel (int x, int y, int xRes, int yRes, vector<Ray> &prs) {
+  void get_primary_rays_for_pixel (int x, int y, int xRes, int yRes, vector<Ray> &prs, int n_samples=5) {
     double dx = rect.s1 / xRes;
     double dy = rect.s2 / yRes;
     VEC3 ap_rect_pt = rect.o 
@@ -727,7 +727,7 @@ struct OrthographicCamera : public Camera {
       + (rect.d2 * ((y + 0.0) / (yRes + 0.0) * rect.s2));
     Rectangle aperture_rect(ap_rect_pt, rect.d1, rect.d2, dx, dy);
     vector<VEC3> points; 
-    aperture_rect.rand_stratified_samples(points, 5); 
+    aperture_rect.rand_stratified_samples(points, n_samples); 
     for (auto &pt: points) 
       prs.push_back(Ray(pt, rect.normal(VEC3(0,0,0))));
   }

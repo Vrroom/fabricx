@@ -19,8 +19,8 @@
 
 using namespace std;
 
-int WINDOW_WIDTH = 128;
-int WINDOW_HEIGHT = 128;
+int WINDOW_WIDTH = 256;
+int WINDOW_HEIGHT = 256;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
 int N_TILE = 1;
@@ -266,6 +266,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       {
         vector<Ray> rays; 
         cam.get_primary_rays_for_pixel(x, y, xRes_eq, yRes_eq, rays); 
+        int ray_count = 0;
         for (auto r: rays) {
           VEC3 rColor;
           bool intersected = true;
@@ -301,9 +302,12 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                   bent_normal += (d * V * max(d.dot(n), 0.0)); // \int wi V <n, wi> dwi
                   total_sampled++; 
 
-                  // write the visibility data to the correct buffer
-                  int tid = omp_get_thread_num();
-                  buffers[tid] << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                  if (ray_count == 0) {
+                    // write the visibility data to the correct buffer only for the first ray in our
+                    // stratified sampler. 
+                    int tid = omp_get_thread_num();
+                    buffers[tid] << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                  }
                 }
               }
               color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2);
@@ -312,6 +316,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
           }
           if (si != NULL) 
             delete si;
+          ray_count += 1;
         }
         color = color * (1.0 / ((Real) rays.size())); 
       }
@@ -367,6 +372,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   }
   out.close();
 
+  // TODO: Make a function out of this
   // Fix them.
   string filename_txt = filename + ".txt";
   ofstream txtFile;

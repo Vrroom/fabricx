@@ -7,8 +7,9 @@ import numpy as np
 import drjit as dr
 from collections import defaultdict
 from utils import read_txt_feature_map
+from tqdm import tqdm
 
-MAP_DIM = 128
+MAP_DIM = 256
 VIS = True
 
 def dot_torch (a, b) : 
@@ -242,19 +243,21 @@ if __name__ == "__main__":
 
     data = defaultdict(lambda : [])
     with open('data.txt') as fp : 
-        for line in fp.readlines() : 
+        for line in tqdm(fp.readlines()) : 
             y, x, phi, theta, V = line.split()
             y, x, phi, theta, V = int(y), int(x), float(phi), float(theta), float(V) 
             data[(y,x)].append((phi, theta, V))
+    print("data read")
     
     data_ten = np.ones((MAP_DIM, MAP_DIM, 110, 3)) 
-    for k, v in data.items(): 
+    for k, v in tqdm(data.items()): 
         y, x = k  
         data_ten[x, y, ...] = np.array(v)
+    print("data formatted")
 
     if VIS : 
         cnt = 0
-        for phi_i in range(11):
+        for phi_i in tqdm(range(11)):
             for theta_i in range(10): 
                 phi = phi_i * (math.pi / 2) * (1.0 / 10); 
                 theta = theta_i * 2 * math.pi * (1.0 / 10); 
@@ -265,7 +268,7 @@ if __name__ == "__main__":
         data_ten = torch.from_numpy(data_ten)
 
         # normals = torch.from_numpy((np.array(Image.open('bent_normal_map.png').convert('RGB')) / 255.) * 2 - 1)
-        normals = read_txt_feature_map("bent_normal_map.txt")
+        normals = torch.from_numpy(read_txt_feature_map("bent_normal_map.txt") * 2 - 1)
         normals = normals / torch.norm(normals, dim=-1, keepdim=True)
         # now simple optimization loop 
         mu_init = euclidean_to_spherical(normals)
@@ -278,7 +281,7 @@ if __name__ == "__main__":
         params = [gamma, log_sigma_x, log_sigma_y]
         opt = optim.Adam(params, lr=1e-1) 
 
-        for i in range(500) : 
+        for i in tqdm(range(500)) : 
             opt.zero_grad()
 
             indices = torch.randint(0, 110, (MAP_DIM, MAP_DIM), dtype=torch.long)
