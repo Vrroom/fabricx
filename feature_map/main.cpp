@@ -19,8 +19,8 @@
 
 using namespace std;
 
-int WINDOW_WIDTH = 256;
-int WINDOW_HEIGHT = 256;
+int WINDOW_WIDTH = 1024;
+int WINDOW_HEIGHT = 1024;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
 int N_TILE = 1;
@@ -310,7 +310,10 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                   }
                 }
               }
-              color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2);
+              if (norm(bent_normal) < 1e-4) 
+                color += to_hom((VEC3(0.0, 0.0, 1.0) + VEC3(1.0, 1.0, 1.0)) / 2);
+              else
+                color += to_hom((normalized(bent_normal) + VEC3(1.0, 1.0, 1.0)) / 2);
             }
             else color += to_hom(rColor); 
           }

@@ -9,7 +9,7 @@ from collections import defaultdict
 from utils import read_txt_feature_map
 from tqdm import tqdm
 
-MAP_DIM = 256
+MAP_DIM = 1024
 VIS = True
 
 def dot_torch (a, b) : 
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
             pred, max_fn_val = asg_torch(mu, gamma, log_sigma_x, log_sigma_y, C, d, return_ceiling=True) 
 
-            loss = -pred[V].sum() + pred[~V].sum()
+            loss = -pred[V].mean() + pred[~V].mean()
 
             if i % 100 == 0 : 
                 print(f'Iteration = {i}, Current loss = {loss.item():4f}')
