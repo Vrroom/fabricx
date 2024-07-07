@@ -19,11 +19,12 @@
 
 using namespace std;
 
-int WINDOW_WIDTH = 1024;
-int WINDOW_HEIGHT = 1024;
+// 3*3 tiling and get the center tile, to ensure correct visibility at tile edges
+int WINDOW_WIDTH = 1024 * 3;
+int WINDOW_HEIGHT = 1024 * 3;
 int NUM_PROFILE_POINTS=200; 
 int NUM_SWEEP_POINTS=200;
-int N_TILE = 1;
+int N_TILE = 1 * 3;
 int N_ANGLE = 10;
 
 double R = 10; 
@@ -227,35 +228,39 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   }
   vector<ostringstream> buffers(num_threads);
 
-  int xRes_eq = xRes;
-  int yRes_eq = yRes;
+  // only run for the center tile region
+  // [xRes_start, xRes_start + xRes_range) * [yRes_start, yRes_start + yRes_range)
+  int xRes_start = xRes / 3;
+  int xRes_range = xRes / 3;
+  int yRes_start = yRes / 3;
+  int yRes_range = yRes / 3;
+
   if (map_type == POSITION_MAP)
   {
-    xRes_eq += 1;
-    yRes_eq += 1;
+    xRes_range += 1;
+    yRes_range += 1;
   }
 
-  VEC4** colorArray = new VEC4*[xRes_eq];
-  for (int i = 0; i < xRes_eq; i++)
+  VEC4** colorArray = new VEC4*[xRes_range];
+  for (int i = 0; i < xRes_range; i++)
   {
-    colorArray[i] = new VEC4[yRes_eq];
+    colorArray[i] = new VEC4[yRes_range];
   }
 
-  Image im(xRes_eq, yRes_eq);
+  Image im(xRes_range, yRes_range);
   // allocate the final image
-  const int totalCells = xRes_eq * yRes_eq;
-
+  const int totalCells = xRes_range * yRes_range;
 
   // compute image plane
   #pragma omp parallel for collapse(2)
-  for (int y = 0; y < yRes_eq; y++) { 
-    for (int x = 0; x < xRes_eq; x++) 
+  for (int y = yRes_start; y < yRes_start + yRes_range; y++) { 
+    for (int x = xRes_start; x < xRes_start + xRes_range; x++) 
     {
       // get the color
       VEC4 color(0.0, 0.0, 0.0, 0.0);
       if (map_type == POSITION_MAP)
       {
-        Ray r = cam.get_ray_for_pixel_corner(x, y, xRes_eq, yRes_eq);
+        Ray r = cam.get_ray_for_pixel_corner(x, y, xRes+1, yRes+1);
         VEC3 rColor;
         bool intersected = true;
         SurfaceInteraction * si = rayColor(r, rColor, intersected);
@@ -265,7 +270,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       else
       {
         vector<Ray> rays; 
-        cam.get_primary_rays_for_pixel(x, y, xRes_eq, yRes_eq, rays); 
+        cam.get_primary_rays_for_pixel(x, y, xRes, yRes, rays); 
         int ray_count = 0;
         for (auto r: rays) {
           VEC3 rColor;
@@ -325,8 +330,8 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
       }
 
       // set, in final image
-      im.set_color_4(y, x, color);
-      colorArray[x][y] = color;
+      im.set_color_4(y-yRes_start, x-xRes_start, color);
+      colorArray[x-xRes_start][y-yRes_start] = color;
     }
   }
   // detect whether there are some degenerate pixels 
@@ -380,9 +385,9 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   string filename_txt = filename + ".txt";
   ofstream txtFile;
   txtFile.open(filename_txt);
-  for (int i = 0; i < xRes_eq; i++)
+  for (int i = 0; i < xRes_range; i++)
   {
-    for (int j = 0; j < yRes_eq; j++)
+    for (int j = 0; j < yRes_range; j++)
     {
       txtFile << colorArray[i][j][0] << " "
               << colorArray[i][j][1] << " "
@@ -457,7 +462,6 @@ void placeFilament (Filament2D &fil, FeatureMapType map_type) {
 }
 
 void build (FilamentMap &fil_map, FeatureMapType map_type) {
-  R = R / N_TILE;
   scene.clear();
   for (auto &f: fil_map) 
     placeFilament(f, map_type); 
@@ -503,6 +507,8 @@ int main(int argc, char* argv[]) {
   DELTA_TRANSMISSION = result["delta-transmission"].as<bool>();
   ADD_NOISE = result["add-noise"].as<bool>();
   file_path = result["file-path"].as<string>(); 
+
+  R = R / N_TILE; // scale down radius
 
   FilamentMap fil_map = readFilamentMap(file_path); 
   vector<FeatureMapType> types = { NORMAL_MAP, TANGENT_MAP, ID_MAP, POSITION_MAP, BENT_NORMAL_MAP }; 
