@@ -17,8 +17,8 @@ def is_power_of_two(x):
 
 output_path = "mipmaps/"
 
-normal_map = (np.array(Image.open("normal_map.png").convert("RGB")) / 255.0) * 2.0 - 1.0
-# normal_map = read_txt_feature_map("normal_map.txt") * 2.0 - 1.0
+# normal_map = (np.array(Image.open("normal_map.png").convert("RGB")) / 255.0) * 2.0 - 1.0
+normal_map = read_txt_feature_map("normal_map.txt") * 2.0 - 1.0
 normal_map_shape = normal_map.shape
 if normal_map_shape[0] != normal_map_shape[1]:
     raise RuntimeError("Incorrect normal map shape: it should be square.")
