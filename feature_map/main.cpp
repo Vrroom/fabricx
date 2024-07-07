@@ -311,7 +311,7 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
                     // write the visibility data to the correct buffer only for the first ray in our
                     // stratified sampler. 
                     int tid = omp_get_thread_num();
-                    buffers[tid] << y << " " << x << " " << phi << " " << theta << " " << V << endl;
+                    buffers[tid] << y-yRes_start << " " << x-xRes_start << " " << phi << " " << theta << " " << V << endl;
                   }
                 }
               }
