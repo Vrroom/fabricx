@@ -517,10 +517,10 @@ class SurfaceBased (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cylinder/bent_normal_map.png').convert('RGB')))))
-        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cylinder/asg_params.npy')))
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cloth/bent_normal_map.png').convert('RGB')))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cloth/asg_params.npy')))
 
-        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cylinder/normal_512.png').convert('RGB'))))
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cloth/normal_16.png').convert('RGB'))))
 
         # Reading Normal Map
         nm = None
@@ -641,10 +641,11 @@ class SurfaceBased (mi.BSDF) :
         # TODO: check the numerator and denominator, as it is different in the two papers (Jin and SurfaceBased)
         threshold_diffuse = 0.01    # avoid division of near-zero values
         diffuse_sign = dr.select(selected_r, 1.0, -1.0) # negative sign if transmit
+        abs_on = abs_dot(diffuse_sign * si.wi, normal)
         abs_in = dr.abs(diffuse_sign * cos_theta_i)
         abs_in = dr.maximum(threshold_diffuse, abs_in)
         f_diffuse = (F / math.pi) * (
-            self.w * (abs_dot(diffuse_sign * si.wi, normal) / abs_in) +
+            self.w * (abs_on / abs_in) +
             (1.0 - self.w)
         )
 
