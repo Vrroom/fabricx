@@ -3,8 +3,8 @@
 <!-- Defaults, these can be set via the command line: -Darg=value -->
 
 	<default name="spp" value="4096"/>
-	<default name="resx" value="1920"/>
-	<default name="resy" value="1080"/>
+	<default name="resx" value="3840"/>
+	<default name="resy" value="2160"/>
 
 <!-- Camera and Rendering Parameters -->
 

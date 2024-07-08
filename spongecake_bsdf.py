@@ -520,7 +520,7 @@ class SurfaceBased (mi.BSDF) :
         self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cloth/bent_normal_map.png').convert('RGB')))))
         self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cloth/asg_params.npy')))
 
-        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cloth/normal_16.png').convert('RGB'))))
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cloth/normal_8.png').convert('RGB'))))
 
         # Reading Normal Map
         nm = None
@@ -545,7 +545,12 @@ class SurfaceBased (mi.BSDF) :
         self.normal_map = mi.Texture2f(mi.TensorXf(nm))
         self.tangent_map = mi.Texture2f(mi.TensorXf(tm))
 
-        texture_map = np.array(Image.open(texture_file)) / 255.0
+        # Reading Texture Map
+        texture_map = None
+        if (texture_file.endswith(".png")):
+            texture_map = np.array(Image.open(texture_file)) / 255.0
+        elif (texture_file.endswith(".txt")):
+            texture_map = read_txt_feature_map(texture_file)
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
@@ -553,7 +558,7 @@ class SurfaceBased (mi.BSDF) :
         self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        tiles = 128
+        tiles = 256
         tiled_uv = (si.uv * tiles) - dr.trunc(si.uv * tiles)
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
@@ -597,7 +602,7 @@ class SurfaceBased (mi.BSDF) :
         wo = dr.select(selected_dt, wo_dt, wo)
         pdf = dr.select(selected_dt, pdf_dt, pdf)
 
-        color = mi.Color3f(self.texture.eval(si.uv))    # texture uses original uv
+        color = mi.Color3f(self.texture.eval(tiled_uv)) # texture usually uses original uv (si.uv) unless using id map
         F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
