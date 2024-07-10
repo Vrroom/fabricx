@@ -2,6 +2,16 @@
 
 This is a working collection of tools to model the appearance of fabrics. Most of the code is based on Mitsuba and we occasionally use Blender to visualize things.
 
+## Meso-Scale BSDF
+
+Horizontal / Vertical:
+| Red / Blue | Blue / Red |
+|---------|-------|
+![256tiles_rb_mm8_alpha000](https://github.com/Vrroom/fabricx/assets/83887491/cdcaadea-1ada-4736-8009-c1cf5c46fd81) | ![256tiles_br_mm8_alpha000](https://github.com/Vrroom/fabricx/assets/83887491/95d24e10-01ac-42c0-a0fb-339b30c75e4a)
+
+Cylinder with Meso-Scale BSDF:
+![MesoScale](https://github.com/Vrroom/fabricx/assets/83887491/e64e1aa6-9cfb-47d3-9c6e-cb21f38423ab)
+
 ## Visibility
 
 We fit ASGs to the per point visibility function and discarded light paths that reached an invisible region. This experiment is a bit hacky and needs to be improved. 
