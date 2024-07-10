@@ -1,9 +1,13 @@
+"""
+Tiling the maps. Currently unused since tiling is handled by scaling the uv.
+"""
+
 import numpy as np
 from PIL import Image
 from utils import read_txt_feature_map, tile_feature_map
 
 input_path = "normal_map.txt"
-output_path = "cloth/normal_map.png"
+output_path = "normal_map.png"
 
 normal_map_unit = read_txt_feature_map(input_path)
 

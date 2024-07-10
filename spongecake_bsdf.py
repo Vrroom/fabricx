@@ -517,15 +517,15 @@ class SurfaceBased (mi.BSDF) :
         tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
         texture_file = texture if texture is not None else props['texture']
 
-        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open('cloth/bent_normal_map.png').convert('RGB')))))
-        self.asg_params = mi.Texture2f(mi.TensorXf(np.load('cloth/asg_params.npy')))
-
-        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open('cloth/normal_8.png').convert('RGB'))))
+        cloth_type = "plain"
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open("cloth/" + cloth_type + "/bent_normal_map.png").convert("RGB")))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load("cloth/" + cloth_type + "/asg_params.npy")))
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open("cloth/" + cloth_type + "/normal_8.png").convert("RGB"))))
 
         # Reading Normal Map
         nm = None
         if (normal_map_file.endswith(".png")):
-            nm = np.array(Image.open(normal_map_file).convert('RGB'), dtype=float)
+            nm = np.array(Image.open(normal_map_file).convert("RGB"), dtype=float)
             nm /= 255.0
         elif (normal_map_file.endswith(".txt")):
             nm = read_txt_feature_map(normal_map_file)
