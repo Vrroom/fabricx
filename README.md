@@ -4,6 +4,8 @@ This is a working collection of tools to model the appearance of fabrics. Most o
 
 ## Meso-Scale BSDF
 
+We implemented a preliminary version of the Meso-Scale BSDF, as introduced in Zhu et al.'s (2023) paper, which incorporates visibility (see next section).
+
 Horizontal / Vertical:
 | Red / Blue | Blue / Red |
 |---------|-------|
