@@ -47,6 +47,11 @@
     </bsdf>
 
 <!-- Emitters -->
+    <!--
+    <emitter type="constant">
+        <rgb name="radiance" value="5.0"/>
+    </emitter>
+    -->
 
     <emitter type="envmap" id="emitter-envmap">
         <string name="filename" value="envmap.exr" />
