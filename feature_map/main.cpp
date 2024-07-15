@@ -209,7 +209,7 @@ SurfaceInteraction * rayColor(Ray &ray, VEC3& pixelColor, bool &intersected) {
 VEC3 getColor (int i, int j, int k, Triangle *t, VEC3 tangent_dir, int type, FeatureMapType map_type) { 
   if (map_type == ID_MAP) { 
     if (type >= COLORS.size()) {
-      return (type % 2 == 0) ? VEC3(1, 0, 0) : VEC3(0, 0, 0); 
+      return (type % 2 == 0) ? VEC3(0.5, 0.0, 0.0) : VEC3(0.0, 0.0, 0.5); 
     }
     return COLORS[type];
   } else if (map_type == POSITION_MAP) {
