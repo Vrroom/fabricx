@@ -47,12 +47,11 @@
     </bsdf>
 
 <!-- Emitters -->
-    <!--
     <emitter type="constant">
         <rgb name="radiance" value="5.0"/>
     </emitter>
-    -->
 
+    <!--
     <emitter type="envmap" id="emitter-envmap">
         <string name="filename" value="envmap.exr" />
         <transform name="to_world">
@@ -61,6 +60,7 @@
         </transform> 
         <float name="scale" value="3" />
     </emitter>
+    -->
 
 <!-- Shapes -->
 
