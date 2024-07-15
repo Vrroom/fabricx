@@ -18,7 +18,7 @@ def is_power_of_two(x):
 output_path = "mipmaps/"
 
 # normal_map = (np.array(Image.open("normal_map.png").convert("RGB")) / 255.0) * 2.0 - 1.0
-normal_map = read_txt_feature_map("normal_map.txt") * 2.0 - 1.0
+normal_map = read_txt_feature_map("normal_map.txt", dim=4) * 2.0 - 1.0
 normal_map_shape = normal_map.shape
 if normal_map_shape[0] != normal_map_shape[1]:
     raise RuntimeError("Incorrect normal map shape: it should be square.")
@@ -47,11 +47,19 @@ for dim, size in zip(dims, sizes):
     for i1 in np.arange(dim):
         for j1 in np.arange(dim):
             cur_sum = np.zeros(DIM_SAVE_VEC)
+            cur_alpha = 0
+            # TODO: think about average normal when alpha is involved
             for i2 in np.arange(i1*size, (i1+1)*size):
                 for j2 in np.arange(j1*size, (j1+1)*size):
-                    cur_sum += normal_map[i2][j2]
-            cur_avg = cur_sum / float(size**2)
-            cur_map[i1][j1] = cur_avg / np.linalg.norm(cur_avg)
+                    cur_sum += normal_map[i2][j2][:3] * normal_map[i2][j2][3]
+                    cur_alpha += normal_map[i2][j2][3]
+            if cur_alpha > 0:
+                cur_avg = cur_sum / cur_alpha
+                cur_map[i1][j1] = cur_avg / np.linalg.norm(cur_avg)
+            else:
+                # TODO: should be fine as average normal of these regions should not be accessed
+                #       but still think about it
+                cur_map[i1][j1] = np.array([0.0, 0.0, 0.0])
 
     # Previous Implementation:
     # prev_map = maps[-1]
