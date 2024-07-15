@@ -5,7 +5,7 @@ from more_itertools import take
 import drjit as dr
 from PIL import Image
 
-def read_txt_feature_map(path: str):
+def read_txt_feature_map(path: str, dim=3):
     """
     Utility function that reads features maps that are stored as .txt files
     Return a numpy array
@@ -15,7 +15,7 @@ def read_txt_feature_map(path: str):
     with open(path, "r") as txt:
         lines = txt.readlines()
         vector_lists = [line.removesuffix(",\n").split(",") for line in lines]
-        vectors = [[vector.split()[:3] for vector in vector_list] for vector_list in vector_lists]
+        vectors = [[vector.split()[:dim] for vector in vector_list] for vector_list in vector_lists]
         vectors_np = np.array(vectors, dtype=float)
     return vectors_np
 

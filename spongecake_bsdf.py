@@ -550,7 +550,7 @@ class SurfaceBased (mi.BSDF) :
         if (texture_file.endswith(".png")):
             texture_map = np.array(Image.open(texture_file)) / 255.0
         elif (texture_file.endswith(".txt")):
-            texture_map = read_txt_feature_map(texture_file)
+            texture_map = read_txt_feature_map(texture_file, 4 if self.delta_transmission else 3)
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."

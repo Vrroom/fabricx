@@ -27,6 +27,7 @@ int NUM_SWEEP_POINTS=200;
 int N_TILE = 1 * 3;
 int N_ANGLE = 10;
 
+double OFFSET = 0.0;
 double R = 10; 
 double PHI = M_PI / 3;
 double EPSILON = 1e-3;
@@ -97,14 +98,28 @@ FilamentMap readFilamentMap(const string& filePath) {
       double x, y, width, height;
       int type;
       if (ss >> x >> y >> width >> height >> type) {
-        Rectangle r(
-          VEC3(x - EPSILON, y - EPSILON, 0.0), 
-          VEC3(1.0, 0.0, 0.0), 
-          VEC3(0.0, 1.0, 0.0),
-          width + 2 * EPSILON,
-          height + 2 * EPSILON
-        );
-        fil_map.push_back(Filament2D(r, type));
+        if (type == 0)
+        {
+          Rectangle r(
+            VEC3((x + OFFSET) - EPSILON, (y - OFFSET) - EPSILON, 0.0), 
+            VEC3(1.0, 0.0, 0.0), 
+            VEC3(0.0, 1.0, 0.0),
+            (width - 2 * OFFSET) + 2 * EPSILON,
+            (height + 2 * OFFSET) + 2 * EPSILON
+          );
+          fil_map.push_back(Filament2D(r, type));
+        }
+        else if (type == 1)
+        {
+          Rectangle r(
+            VEC3((x - OFFSET) - EPSILON, (y + OFFSET) - EPSILON, 0.0), 
+            VEC3(1.0, 0.0, 0.0), 
+            VEC3(0.0, 1.0, 0.0),
+            (width + 2 * OFFSET) + 2 * EPSILON,
+            (height - 2 * OFFSET) + 2 * EPSILON
+          );
+          fil_map.push_back(Filament2D(r, type));
+        }
         continue;
       }
     }
@@ -374,11 +389,14 @@ void renderImage(int& xRes, int& yRes, const string& filename, FeatureMapType &m
   */
 
   // dump the visibility data to file
-  ofstream out("data.txt");
-  for (int i = 0; i < num_threads; i++) {
-    out << buffers[i].str();
+  if (map_type == BENT_NORMAL_MAP)
+  {
+    ofstream out("data.txt");
+    for (int i = 0; i < num_threads; i++) {
+      out << buffers[i].str();
+    }
+    out.close();
   }
-  out.close();
 
   // TODO: Make a function out of this
   // Fix them.
@@ -482,6 +500,7 @@ int main(int argc, char* argv[]) {
     ("h,window-height", "Image height", cxxopts::value<int>()->default_value(std::to_string(WINDOW_HEIGHT)))
     ("p,num-profile-points", "Number of points on the profile curve", cxxopts::value<int>()->default_value(std::to_string(NUM_PROFILE_POINTS)))
     ("s,num-sweep-points", "Number of points on sweep curve", cxxopts::value<int>()->default_value(std::to_string(NUM_SWEEP_POINTS)))
+    ("o,offset", "Offset for space between yarns", cxxopts::value<double>()->default_value(std::to_string(OFFSET)))
     ("r,radius", "Radius of curvature", cxxopts::value<double>()->default_value(std::to_string(R)))
     ("phi,twisting-angle", "Twisting angle in radians", cxxopts::value<double>()->default_value(std::to_string(PHI)))
     ("n,num-tiles", "Number of tiles to make using the Filament map", cxxopts::value<int>()->default_value(std::to_string(N_TILE)))
@@ -501,6 +520,7 @@ int main(int argc, char* argv[]) {
   WINDOW_HEIGHT = result["window-height"].as<int>();
   NUM_PROFILE_POINTS = result["num-profile-points"].as<int>();
   NUM_SWEEP_POINTS = result["num-sweep-points"].as<int>();
+  OFFSET = result["offset"].as<double>();
   R = result["radius"].as<double>();
   PHI = result["twisting-angle"].as<double>();
   N_TILE = result["num-tiles"].as<int>();
