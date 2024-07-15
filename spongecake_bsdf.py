@@ -520,7 +520,7 @@ class SurfaceBased (mi.BSDF) :
         cloth_type = "plain"
         self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open("cloth/" + cloth_type + "/bent_normal_map.png").convert("RGB")))))
         self.asg_params = mi.Texture2f(mi.TensorXf(np.load("cloth/" + cloth_type + "/asg_params.npy")))
-        self.normal_mipmap = mi.Texture2f(mi.TensorXf(np.array(Image.open("cloth/" + cloth_type + "/normal_8.png").convert("RGB"))))
+        self.normal_mipmap = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open("cloth/" + cloth_type + "/normal_8.png").convert("RGB")))))
 
         # Reading Normal Map
         nm = None
