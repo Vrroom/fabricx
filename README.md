@@ -9,20 +9,15 @@ We implemented a preliminary version of the Meso-Scale BSDF, as introduced in Zh
 Horizontal / Vertical:
 | Red / Blue | Blue / Red |
 |------------|------------|
-![256tiles_rb_mm8_alpha000](https://github.com/Vrroom/fabricx/assets/83887491/cdcaadea-1ada-4736-8009-c1cf5c46fd81) | ![256tiles_br_mm8_alpha000](https://github.com/Vrroom/fabricx/assets/83887491/95d24e10-01ac-42c0-a0fb-339b30c75e4a)
-
-Constant Lighting:
-| Red / Blue | Blue / Red |
-|------------|------------|
-![plain_rb](https://github.com/Vrroom/fabricx/assets/83887491/6f263252-8b8b-4673-8da2-be261dcb5337) | ![plain_br](https://github.com/Vrroom/fabricx/assets/83887491/b7c55d27-4287-46e0-8607-77c5a85b0e56)
+![256_rb_mm8_alpha000](https://github.com/user-attachments/assets/6737ce86-cb70-4d24-bdea-7d034ceb1d33) | ![256_br_mm8_alpha000](https://github.com/user-attachments/assets/099d6a78-c935-4131-9682-9577ebfaa7bd)
 
 Visibility Comparisons:
 |  No V_i  | Original |  No V_o  |
 |----------|----------|----------|
-![plain_rb_no_vi](https://github.com/Vrroom/fabricx/assets/83887491/068d3da3-c2ca-42f5-a3d5-18b791e028cb) | ![plain_rb](https://github.com/Vrroom/fabricx/assets/83887491/ccb9f802-ef43-4c91-9c32-8eebd13a78e3) | ![plain_rb_no_vo](https://github.com/Vrroom/fabricx/assets/83887491/2739d58b-5b9a-4a75-8d4d-269390a0412a)
+![256_rb_mm8_alpha000_no_vi](https://github.com/user-attachments/assets/e10ebd9e-f83d-40c6-9fc5-159415e6d4ac) | ![256_rb_mm8_alpha000](https://github.com/user-attachments/assets/b24d036c-1b61-445b-9266-c963d4d4c121) | ![256_rb_mm8_alpha000_no_vo](https://github.com/user-attachments/assets/ee11b670-df2b-430b-b142-a330fd575878)
 
 Cylinder with Meso-Scale BSDF:
-![MesoScale](https://github.com/Vrroom/fabricx/assets/83887491/e64e1aa6-9cfb-47d3-9c6e-cb21f38423ab)
+![cylinder_mm256](https://github.com/user-attachments/assets/5ceb6b4a-b3b3-4c00-95d4-6be4281ace3d)
 
 ## Visibility
 
