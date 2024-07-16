@@ -16,6 +16,9 @@ Visibility Comparisons:
 |----------|----------|----------|
 ![256_rb_mm8_alpha000_no_vi](https://github.com/user-attachments/assets/e10ebd9e-f83d-40c6-9fc5-159415e6d4ac) | ![256_rb_mm8_alpha000](https://github.com/user-attachments/assets/b24d036c-1b61-445b-9266-c963d4d4c121) | ![256_rb_mm8_alpha000_no_vo](https://github.com/user-attachments/assets/ee11b670-df2b-430b-b142-a330fd575878)
 
+Delta Transmission:
+![delta0025_128_mm16](https://github.com/user-attachments/assets/ea5c24d9-4104-439d-baac-73670c2f9122)
+
 Cylinder with Meso-Scale BSDF:
 ![cylinder_mm256](https://github.com/user-attachments/assets/5ceb6b4a-b3b3-4c00-95d4-6be4281ace3d)
 
