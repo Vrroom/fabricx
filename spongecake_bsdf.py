@@ -2,6 +2,7 @@ import mitsuba as mi
 from PIL import Image
 import numpy as np
 import math
+import os
 import drjit as dr
 from utils import *
 from asg import (
@@ -518,38 +519,12 @@ class SurfaceBased (mi.BSDF) :
         texture_file = texture if texture is not None else props['texture']
 
         self.feature_map_type = "cloth"
+        self.cloth_type = "plain"
 
         if self.feature_map_type == "cloth":
-            cloth_type = "plain"
-            self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/"  + cloth_type + "/bent_normal_map.png").convert("RGB")))))
-            self.asg_params = mi.Texture2f(mi.TensorXf(np.load(self.feature_map_type + "/"  + cloth_type + "/asg_params.npy")))
-            self.normal_mipmap = []
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_1.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_2.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_4.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_8.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_16.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_32.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_64.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_128.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_256.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/" + cloth_type + "/normal_512.png").convert("RGB"))))))
-
-        elif self.feature_map_type == "cylinder":
-            self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/bent_normal_map.png").convert("RGB")))))
-            self.asg_params = mi.Texture2f(mi.TensorXf(np.load(self.feature_map_type + "/asg_params.npy")))
-            self.normal_mipmap = []
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_1.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_2.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_4.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_8.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_16.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_32.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_64.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_128.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_256.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_512.png").convert("RGB"))))))
-            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(self.feature_map_type + "/normal_1024.png").convert("RGB"))))))
+            feature_map_dir = os.path.join(self.feature_map_type, self.cloth_type)
+        else:
+            feature_map_dir = self.feature_map_type
 
         # Reading Normal Map
         nm = None
@@ -585,6 +560,19 @@ class SurfaceBased (mi.BSDF) :
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
         # 0 means transmit, 1 means go through
         self.delta_transmission_map = mi.Texture2f(mi.TensorXf(delta_map))
+
+        # Reading Visibility Maps
+        self.bent_normal_map = mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(os.path.join(feature_map_dir, "bent_normal_map.png")).convert("RGB")))))
+        self.asg_params = mi.Texture2f(mi.TensorXf(np.load(os.path.join(feature_map_dir, "asg_params.npy"))))
+
+        # Reading Normal Mipmaps
+        self.normal_mipmap = []
+        feature_map_dim = nm.shape[0]
+        cur_dim = 1
+        while cur_dim < feature_map_dim:
+            mipmap_path = os.path.join(feature_map_dir, "normal_" + str(cur_dim) + ".png")
+            self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(mipmap_path).convert("RGB"))))))
+            cur_dim *= 2
 
     def sample (self, ctx, si, sample1, sample2, active) : 
         tiles = 256
