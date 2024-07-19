@@ -9,18 +9,20 @@ We implemented a preliminary version of the Meso-Scale BSDF, as introduced in Zh
 Horizontal / Vertical:
 | Red / Blue | Blue / Red |
 |------------|------------|
-![256_rb_mm8_alpha000](https://github.com/user-attachments/assets/6737ce86-cb70-4d24-bdea-7d034ceb1d33) | ![256_br_mm8_alpha000](https://github.com/user-attachments/assets/099d6a78-c935-4131-9682-9577ebfaa7bd)
+![256tiles_rb_mm8_alpha000_v015](https://github.com/user-attachments/assets/24065bde-4e78-4878-aaa8-2c8e37bb4ef6) | ![256tiles_br_mm8_alpha000_v015](https://github.com/user-attachments/assets/9c28c5f7-8b46-400e-b7e0-91305e7a21c5)
 
-Visibility Comparisons:
-|  No V_i  | Original |  No V_o  |
-|----------|----------|----------|
-![256_rb_mm8_alpha000_no_vi](https://github.com/user-attachments/assets/e10ebd9e-f83d-40c6-9fc5-159415e6d4ac) | ![256_rb_mm8_alpha000](https://github.com/user-attachments/assets/b24d036c-1b61-445b-9266-c963d4d4c121) | ![256_rb_mm8_alpha000_no_vo](https://github.com/user-attachments/assets/ee11b670-df2b-430b-b142-a330fd575878)
+Visibility Comparisons (Threshold Value):
+|  0.00  |  0.15  |  0.30  |
+|--------|--------|--------|
+![meso_000](https://github.com/user-attachments/assets/9cd026dc-2830-4ed9-bfc9-faec6e61b049) | ![meso_015](https://github.com/user-attachments/assets/a38060ab-ba2f-4c60-ae0d-e74992fc1ea9) | ![meso_030](https://github.com/user-attachments/assets/9cf6905c-fe40-44b2-9626-b0609fa1082a)
 
-Delta Transmission:
-![delta0025_128_mm16](https://github.com/user-attachments/assets/ea5c24d9-4104-439d-baac-73670c2f9122)
+Delta Transmission Comparisons:
+|  0.025  |  0.050  |
+|---------|---------|
+![delta0025_128tiles_mm16_v015](https://github.com/user-attachments/assets/fb303b3b-67ea-4a5c-9159-084548655b45) | ![delta0050_128tiles_mm16_v015](https://github.com/user-attachments/assets/089e68d4-bae3-42f3-8a84-318b733ca815)
 
 Cylinder with Meso-Scale BSDF:
-![cylinder_mm256](https://github.com/user-attachments/assets/5ceb6b4a-b3b3-4c00-95d4-6be4281ace3d)
+![cylinder_mm256](https://github.com/user-attachments/assets/2171a6e4-d0f1-4a8b-83ab-b27ad6dfaa06)
 
 ## Visibility
 
