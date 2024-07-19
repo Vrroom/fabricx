@@ -683,6 +683,12 @@ class SurfaceBased (mi.BSDF) :
         # mipmap_level = dr.round(dr.sqrt(-dr.log2(area)))
         ## TODO: mipmap level determination for cloth, which should consider tiling
 
+        # best threshold value from ASG results for plain type
+        # TODO: evaluate more threshold values during ASG
+        v_threshold = 0.1
+        V_i = dr.select(V_i <= v_threshold, 0.0, 1.0)
+        V_o = dr.select(V_o <= v_threshold, 0.0, 1.0)
+
         cloth_mipmap_dim = 8
         cylinder_mipmap_dim = 256
         mipmap_level = dr.select(self.feature_map_type == "cloth", int(math.log2(cloth_mipmap_dim)), int(math.log2(cylinder_mipmap_dim)))
