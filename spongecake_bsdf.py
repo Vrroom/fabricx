@@ -685,7 +685,6 @@ class SurfaceBased (mi.BSDF) :
         ## TODO: mipmap level determination for cloth, which should consider tiling
 
         # best threshold value from ASG results for plain type
-        # TODO: evaluate more threshold values during ASG
         v_threshold = 0.1
         V_i = dr.select(V_i <= v_threshold, 0.0, 1.0)
         V_o = dr.select(V_o <= v_threshold, 0.0, 1.0)

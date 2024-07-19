@@ -247,17 +247,17 @@ if __name__ == "__main__":
             y, x, phi, theta, V = line.split()
             y, x, phi, theta, V = int(y), int(x), float(phi), float(theta), float(V) 
             data[(y,x)].append((phi, theta, V))
-    print("data read")
+    print("data read\n")
     
     data_ten = np.ones((MAP_DIM, MAP_DIM, 110, 3)) 
     for k, v in tqdm(data.items()): 
         y, x = k  
         data_ten[x, y, ...] = np.array(v)
-    print("data formatted")
+    print("data formatted\n")
 
     if VIS : 
         cnt = 0
-        for phi_i in tqdm(range(11)):
+        for phi_i in range(11):
             for theta_i in range(10): 
                 phi = phi_i * (math.pi / 2) * (1.0 / 10); 
                 theta = theta_i * 2 * math.pi * (1.0 / 10); 
@@ -281,7 +281,7 @@ if __name__ == "__main__":
         params = [gamma, log_sigma_x, log_sigma_y]
         opt = optim.Adam(params, lr=1e-1) 
 
-        for i in tqdm(range(500)) : 
+        for i in range(500) : 
             opt.zero_grad()
 
             indices = torch.randint(0, 110, (MAP_DIM, MAP_DIM), dtype=torch.long)
@@ -294,8 +294,9 @@ if __name__ == "__main__":
 
             loss = -pred[V].mean() + pred[~V].mean()
 
-            if i % 100 == 0 : 
-                print(f'Iteration = {i}, Current loss = {loss.item():4f}')
+            
+            if (i+1) % 100 == 0 : 
+                print(f'Iteration = {i+1}, Current loss = {loss.item():4f}')
                 with torch.no_grad() : 
                     mu_ = mu.unsqueeze(2).repeat((1, 1, 110, 1))
                     gamma_ = gamma.unsqueeze(2).repeat(1, 1, 110)
@@ -304,12 +305,19 @@ if __name__ == "__main__":
                     C_ = C.unsqueeze(2).repeat(1, 1, 110)
                     preds, max_fn_vals = asg_torch(mu_, gamma_, log_sigma_x_, log_sigma_y_, C_, data_ten[..., :2], return_ceiling=True)
                     gt = data_ten[...,2].bool()
-                    thresholds = [0.0, 0.1, 0.3, 0.5, 0.9]
+                    thresholds = np.linspace(0, 0.5, 21)
                     print(f'Class bias - {gt.float().mean():.2f}')
                     print('Accuracy with absolutes:')  
-                    print(' '.join([f'Thr - {_:.2f}, Acc - {((preds > _) == gt).float().mean().item():2f}' for _ in thresholds]))
+                    acc_abs = [((preds > thr) == gt).float().mean().item() for thr in thresholds]
+                    acc_abs_max_index = np.argmax(acc_abs)
+                    print(' '.join([f'Thr - {thr:.3f}, Acc - {acc:.3f};' for thr, acc in zip(thresholds, acc_abs)]))
+                    print(f"Max Acc:{acc_abs[acc_abs_max_index]:.3f} at Thr: {thresholds[acc_abs_max_index]:.3f}\n")
                     print('Accuracy with Relatives:')  
-                    print(' '.join([f'Thr - {_:.2f}, Acc - {(((preds / max_fn_vals) > _) == gt).float().mean().item():2f}' for _ in thresholds]))
+                    acc_rel = [(((preds / max_fn_vals) > thr) == gt).float().mean().item() for thr in thresholds]
+                    acc_rel_max_index = np.argmax(acc_rel)
+                    print(' '.join([f'Thr - {thr:.3f}, Acc - {acc:.3f};' for thr, acc in zip(thresholds, acc_rel)]))
+                    print(f"Max Acc:{acc_rel[acc_rel_max_index]:.3f} at Thr: {thresholds[acc_rel_max_index]:.3f}\n")
+                    print()
 
             loss.backward() 
             opt.step()
