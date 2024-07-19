@@ -573,6 +573,7 @@ class SurfaceBased (mi.BSDF) :
             mipmap_path = os.path.join(feature_map_dir, "normal_" + str(cur_dim) + ".png")
             self.normal_mipmap.append(mi.Texture2f(mi.TensorXf(fix_map(np.array(Image.open(mipmap_path).convert("RGB"))))))
             cur_dim *= 2
+        self.normal_mipmap.append(self.normal_map)
 
     def sample (self, ctx, si, sample1, sample2, active) : 
         tiles = 256
@@ -697,11 +698,8 @@ class SurfaceBased (mi.BSDF) :
         n_s = mi.Vector3f(0.0, 0.0, 1.0)    # n_s: surface normal
         # n_f: average normal over pixel footprint
         # TODO: interpolation between mipmap levels
-        n_f = dr.select(
-            (mipmap_level > len(self.normal_mipmap)-1),
-            normal,
-            mi.Vector3f(self.normal_mipmap[mipmap_level].eval(tiled_uv))    # TODO: int(mipmap_level.numpy()[0]) if mipmap_level is not yet int
-        )
+        mipmap_level = dr.minimum(mipmap_level, len(self.normal_mipmap)-1)
+        n_f = mi.Vector3f(self.normal_mipmap[mipmap_level].eval(tiled_uv))  # TODO: int(mipmap_level.numpy()[0]) if mipmap_level is not yet int
         abs_ns_np = abs_dot(n_s, normal)
         abs_ns_np = dr.maximum(threshold_meso, abs_ns_np)
         abs_ns_nf = abs_dot(n_s, n_f)
