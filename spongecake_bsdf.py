@@ -489,14 +489,17 @@ class SpongeCake (mi.BSDF) :
 
 class SurfaceBased (mi.BSDF) : 
 
-    def __init__ (self, props, *args, texture=None, normal_map=None, 
-            tangent_map=None, perturb_specular=False, delta_transmission=False) : 
+    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, tiles=None, specular_prob=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
         self.alpha = mi.Float(props['alpha'])
         self.surface_or_fiber = mi.Bool(props['surface_or_fiber'])
         self.w = mi.Float(props['w'])
+
+        # TODO: add these to scene
+        self.tiles = tiles
+        self.specular_prob = specular_prob
 
         reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
@@ -509,40 +512,39 @@ class SurfaceBased (mi.BSDF) :
         self.perturb_specular = mi.Bool(perturb_specular)
         self.delta_transmission = mi.Bool(delta_transmission)
 
-        # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
-        texture_file: str = props['texture']
-        normal_map_file: str = props['normal_map']
-        tangent_map_file: str = props['tangent_map']
+        self.feature_map_type = feature_map_type    # default "cloth"
+        self.cloth_type = cloth_type                # default "plain"
 
-        normal_map_file = normal_map if normal_map is not None else props['normal_map']
-        tangent_map_file = tangent_map if tangent_map is not None else props['tangent_map']
-        texture_file = texture if texture is not None else props['texture']
-
-        self.feature_map_type = "cloth"
-        self.cloth_type = "plain"
+        normal_map_file = "normal_map.png"
+        tangent_map_file = "tangent_map.png"
+        texture_file = texture                      # default "id_map.png"
 
         if self.feature_map_type == "cloth":
             feature_map_dir = os.path.join(self.feature_map_type, self.cloth_type)
         else:
             feature_map_dir = self.feature_map_type
+        
+        normal_map_path: str = os.path.join(feature_map_dir, normal_map_file)
+        tangent_map_path: str = os.path.join(feature_map_dir, tangent_map_file)
+        texture_path: str = os.path.join(feature_map_dir, texture_file)
 
         # Reading Normal Map
         nm = None
-        if (normal_map_file.endswith(".png")):
-            nm = np.array(Image.open(normal_map_file).convert("RGB"), dtype=float)
+        if (normal_map_path.endswith(".png")):
+            nm = np.array(Image.open(normal_map_path).convert("RGB"), dtype=float)
             nm /= 255.0
-        elif (normal_map_file.endswith(".txt")):
-            nm = read_txt_feature_map(normal_map_file)
+        elif (normal_map_path.endswith(".txt")):
+            nm = read_txt_feature_map(normal_map_path)
         else:
             raise NotImplementedError("Normal map file must be .png or .txt")
 
         # Reading Tangent Map
         tm = None
-        if (tangent_map_file.endswith(".png")):
-            tm = np.array(Image.open(tangent_map_file).convert("RGB"), dtype=float)
+        if (tangent_map_path.endswith(".png")):
+            tm = np.array(Image.open(tangent_map_path).convert("RGB"), dtype=float)
             tm /= 255.0
-        elif (tangent_map_file.endswith(".txt")):
-            tm = read_txt_feature_map(tangent_map_file)
+        elif (tangent_map_path.endswith(".txt")):
+            tm = read_txt_feature_map(tangent_map_path)
 
         nm, tm = fix_normal_and_tangent_map(nm, tm)
 
@@ -551,10 +553,10 @@ class SurfaceBased (mi.BSDF) :
 
         # Reading Texture Map
         texture_map = None
-        if (texture_file.endswith(".png")):
-            texture_map = np.array(Image.open(texture_file)) / 255.0
-        elif (texture_file.endswith(".txt")):
-            texture_map = read_txt_feature_map(texture_file, 4 if self.delta_transmission else 3)
+        if (texture_path.endswith(".png")):
+            texture_map = np.array(Image.open(texture_path)) / 255.0
+        elif (texture_path.endswith(".txt")):
+            texture_map = read_txt_feature_map(texture_path, 4 if self.delta_transmission else 3)
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
@@ -576,7 +578,7 @@ class SurfaceBased (mi.BSDF) :
         self.normal_mipmap.append(self.normal_map)
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        tiles = 256
+        tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
@@ -597,7 +599,7 @@ class SurfaceBased (mi.BSDF) :
         ####################################################
         ## Micro-scale BSDF
 
-        specular_or_diffuse = sample1 < (1.0 - self.alpha)  # TODO: additional parameter here
+        specular_or_diffuse = sample1 < self.specular_prob
 
         ################################
         ## Specular Terms
