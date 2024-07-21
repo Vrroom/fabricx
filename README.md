@@ -21,6 +21,11 @@ Delta Transmission Comparisons:
 |---------|---------|
 ![delta0025_128tiles_mm16_v015](https://github.com/user-attachments/assets/fb303b3b-67ea-4a5c-9159-084548655b45) | ![delta0050_128tiles_mm16_v015](https://github.com/user-attachments/assets/089e68d4-bae3-42f3-8a84-318b733ca815)
 
+Additional Demo:
+|         beige         |      light blue       |  magenta / dark blue  |      red / green      |
+|-----------------------|-----------------------|-----------------------|-----------------------|
+![beige_512tiles_d0025_a03](https://github.com/user-attachments/assets/b41188fb-b5cc-48d8-a93f-00dd01fbb8f8) | ![lightblue_128tiles_d0075_a03](https://github.com/user-attachments/assets/4e0c6b45-d2e3-4af6-9af2-d5f1f08a1c75) | ![magenta_darkblue_256tiles_a01](https://github.com/user-attachments/assets/4b972a56-233b-43df-9dfe-c0425e0c73e0) | ![red_green_512tiles_a00](https://github.com/user-attachments/assets/d61af825-7c4a-48db-adf1-43a39ad9fc5d)
+
 Cylinder with Meso-Scale BSDF:
 ![cylinder_mm256](https://github.com/user-attachments/assets/2171a6e4-d0f1-4a8b-83ab-b27ad6dfaa06)
 
