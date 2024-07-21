@@ -489,13 +489,17 @@ class SpongeCake (mi.BSDF) :
 
 class SurfaceBased (mi.BSDF) : 
 
-    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, perturb_specular=False, delta_transmission=False) : 
+    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, tiles=None, specular_prob=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
         self.alpha = mi.Float(props['alpha'])
         self.surface_or_fiber = mi.Bool(props['surface_or_fiber'])
         self.w = mi.Float(props['w'])
+
+        # TODO: add these to scene
+        self.tiles = tiles
+        self.specular_prob = specular_prob
 
         reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
@@ -508,21 +512,21 @@ class SurfaceBased (mi.BSDF) :
         self.perturb_specular = mi.Bool(perturb_specular)
         self.delta_transmission = mi.Bool(delta_transmission)
 
-        self.feature_map_type = "cloth" if feature_map_type is None else feature_map_type
-        self.cloth_type = "plain" if cloth_type is None else cloth_type
+        self.feature_map_type = feature_map_type    # default "cloth"
+        self.cloth_type = cloth_type                # default "plain"
 
         normal_map_file = "normal_map.png"
         tangent_map_file = "tangent_map.png"
-        texture_file = "id_map.png" if texture is None else texture
+        texture_file = texture                      # default "id_map.png"
 
         if self.feature_map_type == "cloth":
             feature_map_dir = os.path.join(self.feature_map_type, self.cloth_type)
         else:
             feature_map_dir = self.feature_map_type
         
-        normal_map_path = os.path.join(feature_map_dir, normal_map_file)
-        tangent_map_path = os.path.join(feature_map_dir, tangent_map_file)
-        texture_path = os.path.join(feature_map_dir, texture_file)
+        normal_map_path: str = os.path.join(feature_map_dir, normal_map_file)
+        tangent_map_path: str = os.path.join(feature_map_dir, tangent_map_file)
+        texture_path: str = os.path.join(feature_map_dir, texture_file)
 
         # Reading Normal Map
         nm = None
@@ -574,7 +578,7 @@ class SurfaceBased (mi.BSDF) :
         self.normal_mipmap.append(self.normal_map)
 
     def sample (self, ctx, si, sample1, sample2, active) : 
-        tiles = 256
+        tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         bs = mi.BSDFSample3f() 
         alpha = dr.maximum(0.0001, self.alpha)
@@ -595,7 +599,7 @@ class SurfaceBased (mi.BSDF) :
         ####################################################
         ## Micro-scale BSDF
 
-        specular_or_diffuse = sample1 < (1.0 - self.alpha)  # TODO: additional parameter here
+        specular_or_diffuse = sample1 < self.specular_prob
 
         ################################
         ## Specular Terms
