@@ -489,7 +489,7 @@ class SpongeCake (mi.BSDF) :
 
 class SurfaceBased (mi.BSDF) : 
 
-    def __init__ (self, props, *args, texture=None, perturb_specular=False, delta_transmission=False) : 
+    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
@@ -508,13 +508,12 @@ class SurfaceBased (mi.BSDF) :
         self.perturb_specular = mi.Bool(perturb_specular)
         self.delta_transmission = mi.Bool(delta_transmission)
 
-        self.feature_map_type = "cloth"
-        self.cloth_type = "plain"
+        self.feature_map_type = "cloth" if feature_map_type is None else feature_map_type
+        self.cloth_type = "plain" if cloth_type is None else cloth_type
 
-        # HACK: force reference so that mitsuba doesn't complain and we can override from cmd line
         normal_map_file = "normal_map.png"
         tangent_map_file = "tangent_map.png"
-        texture_file: str = texture if texture is not None else "id_map.png"
+        texture_file = "id_map.png" if texture is None else texture
 
         if self.feature_map_type == "cloth":
             feature_map_dir = os.path.join(self.feature_map_type, self.cloth_type)

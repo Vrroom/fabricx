@@ -29,6 +29,8 @@ if __name__ == "__main__" :
     parser.add_argument('--alpha', type=float, nargs='+', default=[1.0], help='List of integers for alpha')
     parser.add_argument('--optical_depth', type=float, nargs='+', default=[2.0], help='List of integers for alpha') # T * \rho = 2.0, as in Jin et al.'s paper, section 3.2
     parser.add_argument('--fiber', action='store_true', help='Whether to use the fiber mode or the surface mode')
+    parser.add_argument('--feature_map_type', type=str, default=None, help="Feature map type, e.g. 'cloth'")
+    parser.add_argument('--cloth_type', type=str, default=None, help="Cloth type, e.g. 'plain'; only meaningful when feature map type is 'cloth'")
     parser.add_argument('--texture', type=str, default=None, help='Texture file')
     # parser.add_argument('--normal_map', type=str, default=None, help='Normal map file')
     # parser.add_argument('--tangent_map', type=str, default=None, help='Tangent map file')
@@ -65,6 +67,7 @@ if __name__ == "__main__" :
     mi.register_bsdf('disney_principled_bsdf', lambda props : DisneyPrincipledBSDF(props))
     mi.register_bsdf('solid_texture_bsdf', lambda props : SolidTextureBSDF(props))
     mi.register_bsdf('spongecake_bsdf', lambda props: cls_name(props, \
+        feature_map_type=args.feature_map_type, cloth_type = args.cloth_type,
         # normal_map=args.normal_map, tangent_map=args.tangent_map,
         texture=args.texture, perturb_specular=args.perturb_specular, delta_transmission=args.delta_transmission))
 
