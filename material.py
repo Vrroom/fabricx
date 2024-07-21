@@ -25,13 +25,13 @@ if __name__ == "__main__" :
     parser.add_argument('--scene', type=str, default='cloth/cloth_scene.xml', help='Path to scene')
     parser.add_argument('--debug', action='store_true', help='Whether running in debug mode or not')
     # bsdf parameters
-    parser.add_argument('--bsdf-type', type=str, default='SimpleSpongeCake', help='Class name of the bsdf')
+    parser.add_argument('--bsdf-type', type=str, default='SurfaceBased', help='Class name of the bsdf')
     parser.add_argument('--alpha', type=float, nargs='+', default=[1.0], help='List of integers for alpha')
     parser.add_argument('--optical_depth', type=float, nargs='+', default=[2.0], help='List of integers for alpha') # T * \rho = 2.0, as in Jin et al.'s paper, section 3.2
     parser.add_argument('--fiber', action='store_true', help='Whether to use the fiber mode or the surface mode')
     parser.add_argument('--texture', type=str, default=None, help='Texture file')
-    parser.add_argument('--normal_map', type=str, default=None, help='Normal map file')
-    parser.add_argument('--tangent_map', type=str, default=None, help='Tangent map file')
+    # parser.add_argument('--normal_map', type=str, default=None, help='Normal map file')
+    # parser.add_argument('--tangent_map', type=str, default=None, help='Tangent map file')
     parser.add_argument('--perturb_specular', action='store_true', help='Whether to randomly perturb specular weight')
     parser.add_argument('--delta_transmission', action='store_true', help='Whether to use delta transmission')
     # output path
@@ -65,8 +65,8 @@ if __name__ == "__main__" :
     mi.register_bsdf('disney_principled_bsdf', lambda props : DisneyPrincipledBSDF(props))
     mi.register_bsdf('solid_texture_bsdf', lambda props : SolidTextureBSDF(props))
     mi.register_bsdf('spongecake_bsdf', lambda props: cls_name(props, \
-        normal_map=args.normal_map, tangent_map=args.tangent_map, texture=args.texture, 
-        perturb_specular=args.perturb_specular, delta_transmission=args.delta_transmission))
+        # normal_map=args.normal_map, tangent_map=args.tangent_map,
+        texture=args.texture, perturb_specular=args.perturb_specular, delta_transmission=args.delta_transmission))
 
     scene = mi.load_file(args.scene)
 

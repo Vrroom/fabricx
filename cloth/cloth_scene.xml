@@ -40,9 +40,6 @@
       <float name="alpha" value="0.0010"/>
       <float name="optical_depth" value="1"/>
       <boolean name="surface_or_fiber" value="False" />
-      <string name="texture" value="cloth/plain/id_map.png" />
-      <string name="normal_map" value="cloth/plain/normal_map.png" />
-      <string name="tangent_map" value="cloth/plain/tangent_map.png" />
       <float name="w" value="0.2" />
     </bsdf>
 
