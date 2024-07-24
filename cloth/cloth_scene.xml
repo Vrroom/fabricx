@@ -39,6 +39,8 @@
       <vector name="base_color" value="0.0, 1.0, 0.0"/>
       <float name="alpha" value="0.0010"/>
       <float name="optical_depth" value="2.0"/>
+	  <float name="tiles" value="256.0"/>
+	  <float name="specular_prob" value="1.0"/>
       <boolean name="surface_or_fiber" value="False" />
       <float name="w" value="0.2" />
     </bsdf>

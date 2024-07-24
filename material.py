@@ -71,7 +71,6 @@ if __name__ == "__main__" :
     mi.register_bsdf('spongecake_bsdf', lambda props: cls_name(props, \
         feature_map_type=args.feature_map_type, cloth_type = args.cloth_type, texture=args.texture,
         # normal_map=args.normal_map, tangent_map=args.tangent_map,
-        tiles=args.tiles, specular_prob=args.specular_prob,
         perturb_specular=args.perturb_specular, delta_transmission=args.delta_transmission))
 
     scene = mi.load_file(args.scene)
@@ -86,10 +85,14 @@ if __name__ == "__main__" :
     for a in args.alpha: 
         images.append([])
         for od in args.optical_depth: 
-            if 'bsdf-matpreview.alpha' in params : 
+            if 'bsdf-matpreview.alpha' in params :
                 params['bsdf-matpreview.alpha'] = mi.Float(a)
             if 'bsdf-matpreview.optical_depth' in params :
                 params['bsdf-matpreview.optical_depth'] = mi.Float(od)
+            if 'bsdf-matpreview.tiles' in params :
+                params['bsdf-matpreview.tiles'] = mi.Float(args.tiles)
+            if 'bsdf-matpreview.specular_prob' in params :
+                params['bsdf-matpreview.specular_prob'] = mi.Float(args.specular_prob)
             params.update()
             image = mi.render(scene, spp=args.spp)
             img = (image ** (1.0 / 2.2)).numpy()

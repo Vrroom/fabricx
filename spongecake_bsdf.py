@@ -489,17 +489,15 @@ class SpongeCake (mi.BSDF) :
 
 class SurfaceBased (mi.BSDF) : 
 
-    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, tiles=None, specular_prob=None, perturb_specular=False, delta_transmission=False) : 
+    def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
         self.base_color = props['base_color'] 
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
         self.alpha = mi.Float(props['alpha'])
+        self.tiles = mi.Float(props['tiles'])
+        self.specular_prob = mi.Float(props['specular_prob'])
         self.surface_or_fiber = mi.Bool(props['surface_or_fiber'])
         self.w = mi.Float(props['w'])
-
-        # TODO: add these to scene
-        self.tiles = tiles
-        self.specular_prob = specular_prob
 
         reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
@@ -736,8 +734,10 @@ class SurfaceBased (mi.BSDF) :
 
     def traverse(self, callback):
         callback.put_parameter('base_color', self.base_color, mi.ParamFlags.Differentiable)
-        callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
         callback.put_parameter('alpha', self.alpha, mi.ParamFlags.Differentiable)
+        callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
+        callback.put_parameter('tiles', self.tiles, mi.ParamFlags.Differentiable)
+        callback.put_parameter('specular_prob', self.specular_prob, mi.ParamFlags.Differentiable)
         callback.put_parameter('surface_or_fiber', self.surface_or_fiber, mi.ParamFlags.Discontinuous | mi.ParamFlags.NonDifferentiable)
 
     def parameters_changed(self, keys):
