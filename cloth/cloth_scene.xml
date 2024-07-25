@@ -55,7 +55,7 @@
 
 <!-- Emitters -->
     <!-- <emitter type="constant">
-        <rgb name="radiance" value="5.0"/>
+        <rgb name="radiance" value="1.0"/>
     </emitter> -->
 
     
@@ -65,7 +65,7 @@
             <rotate y="1" angle="-180" />
             <matrix value="-0.224951 -0.000001 -0.974370 0.000000 -0.974370 0.000000 0.224951 0.000000 0.000000 1.000000 -0.000001 8.870000 0.000000 0.000000 0.000000 1.000000" />
         </transform> 
-        <float name="scale" value="5" />
+        <float name="scale" value="3" />
     </emitter>
    
 

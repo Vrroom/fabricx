@@ -154,8 +154,6 @@ class SimpleSpongeCake (mi.BSDF) :
         return 0.0
 
     def eval_pdf(self, ctx, si, wo, active):
-        # print("I'm in eval_pdf")
-        dr.printf_async("I'm in eval_pdf\n")
         return 0.0, 0.0
 
     def traverse(self, callback):

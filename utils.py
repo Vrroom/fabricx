@@ -1,10 +1,10 @@
-import sys
-sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')
-sys.path.append('/Users/mengqixia/Github/PyPackages')
-
 # import sys
-# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')
 # sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+import sys
+sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+sys.path.append('/Users/mengqixia/Github/PyPackages')
 
 import drjit as dr
 import mitsuba as mi

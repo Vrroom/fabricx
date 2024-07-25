@@ -3,13 +3,13 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 
-import sys
-sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')  # nanobind version
-sys.path.append('/Users/mengqixia/Github/PyPackages')
-
 # import sys
-# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')  # nanobind version
 # sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+import sys
+sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+sys.path.append('/Users/mengqixia/Github/PyPackages')
 
 import drjit as dr
 import mitsuba as mi
@@ -52,7 +52,7 @@ if __name__ == "__main__" :
     parser.add_argument('--perturb_specular', action='store_true', help='Whether to randomly perturb specular weight')
     parser.add_argument('--delta_transmission', action='store_true', help='Whether to use delta transmission')
     # output path
-    parser.add_argument('--save_to', type=str, default='img.png', help='Where to save the result to')
+    parser.add_argument('--save_to', type=str, default='img.exr', help='Where to save the result to')
 
     args = parser.parse_args()
     
@@ -108,8 +108,10 @@ if __name__ == "__main__" :
                 params['bsdf-matpreview.specular_prob'] = mi.Float(args.specular_prob)
             params.update()
             image = mi.render(scene, spp=args.spp)
-            img = (image ** (1.0 / 2.2)).numpy()
-            img = np.clip(img, 0, 1)
-            images[-1].append(imgArrayToPIL(img))
+            mi.util.write_bitmap(args.save_to, mi.Bitmap(image))
 
-    make_image_grid(images).save(args.save_to)
+            # img = (image ** (1.0 / 2.2)).numpy()
+            # img = np.clip(img, 0, 1)
+            # images[-1].append(imgArrayToPIL(img))
+
+    # make_image_grid(images).save(args.save_to)
