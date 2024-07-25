@@ -2,9 +2,13 @@
 
 <!-- Defaults, these can be set via the command line: -Darg=value -->
 
-	<default name="spp" value="2048"/>
+	<!-- <default name="spp" value="2048"/>
 	<default name="resx" value="3840"/>
-	<default name="resy" value="2160"/>
+	<default name="resy" value="2160"/> -->
+
+	<default name="spp" value="512"/>
+	<default name="resx" value="384"/>
+	<default name="resy" value="216"/>
 
 <!-- Camera and Rendering Parameters -->
 
@@ -45,21 +49,25 @@
       <float name="w" value="0.2" />
     </bsdf>
 
-<!-- Emitters -->
-    <emitter type="constant">
-        <rgb name="radiance" value="5.0"/>
-    </emitter>
+	<!-- <bsdf type="diffuse"  id="bsdf-matpreview">
+    	<rgb name="reflectance" value="0.1, 0.001, 0.001"/>
+	</bsdf> -->
 
-    <!--
+<!-- Emitters -->
+    <!-- <emitter type="constant">
+        <rgb name="radiance" value="5.0"/>
+    </emitter> -->
+
+    
     <emitter type="envmap" id="emitter-envmap">
         <string name="filename" value="envmap.exr" />
         <transform name="to_world">
             <rotate y="1" angle="-180" />
             <matrix value="-0.224951 -0.000001 -0.974370 0.000000 -0.974370 0.000000 0.224951 0.000000 0.000000 1.000000 -0.000001 8.870000 0.000000 0.000000 0.000000 1.000000" />
         </transform> 
-        <float name="scale" value="3" />
+        <float name="scale" value="5" />
     </emitter>
-    -->
+   
 
 <!-- Shapes -->
 

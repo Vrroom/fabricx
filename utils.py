@@ -1,8 +1,17 @@
+import sys
+sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')
+sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+# import sys
+# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+# sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+import drjit as dr
 import mitsuba as mi
+
 import numpy as np
 from itertools import cycle
 from more_itertools import take
-import drjit as dr
 from PIL import Image
 
 def read_txt_feature_map(path: str, dim=3):

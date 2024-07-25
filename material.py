@@ -2,9 +2,22 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
+
+import sys
+sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build/python')  # nanobind version
+sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+# import sys
+# sys.path.insert(0, '/Users/mengqixia/Github/mitsuba3/build_stable/python')
+# sys.path.append('/Users/mengqixia/Github/PyPackages')
+
+import drjit as dr
 import mitsuba as mi
 from itertools import product
 import argparse
+
+# dr.set_flag(dr.JitFlag.VCallRecord, False)
+# dr.set_flag(dr.JitFlag.LoopRecord, False)
 
 def print_dict_as_table(d):
     # Determine the maximum width of the keys and values for alignment
