@@ -16,8 +16,8 @@ import mitsuba as mi
 from itertools import product
 import argparse
 
-# dr.set_flag(dr.JitFlag.VCallRecord, False)
-# dr.set_flag(dr.JitFlag.LoopRecord, False)
+dr.set_flag(dr.JitFlag.VCallRecord, False)
+dr.set_flag(dr.JitFlag.LoopRecord, False)
 
 def print_dict_as_table(d):
     # Determine the maximum width of the keys and values for alignment
