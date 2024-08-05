@@ -16,8 +16,8 @@ import mitsuba as mi
 from itertools import product
 import argparse
 
-dr.set_flag(dr.JitFlag.VCallRecord, False)
-dr.set_flag(dr.JitFlag.LoopRecord, False)
+#dr.set_flag(dr.JitFlag.VCallRecord, False)
+#dr.set_flag(dr.JitFlag.LoopRecord, False)
 
 def print_dict_as_table(d):
     # Determine the maximum width of the keys and values for alignment
@@ -62,7 +62,8 @@ if __name__ == "__main__" :
         mi.set_variant('scalar_rgb')
         print('Note: We won\'t be able to change the scene parameters now!!')
     else :
-        mi.set_variant('llvm_ad_rgb')
+        #mi.set_variant('llvm_ad_rgb')
+        mi.set_variant('cuda_ad_rgb')
 
     from mitsuba import ScalarTransform4f as T
     from bsdf import * 

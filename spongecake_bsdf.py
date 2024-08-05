@@ -345,18 +345,7 @@ class SurfaceBased (mi.BSDF) :
         color = mi.Color3f(self.texture.eval(tiled_uv))
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
-        diffuse_sign = 1.0
-        threshold_diffuse = 0.01
-        normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
-        abs_on = abs_dot(diffuse_sign * si.wi, normal)
-        abs_in = dr.abs(diffuse_sign * cos_theta_i)
-        abs_in = dr.maximum(threshold_diffuse, abs_in)
-
-        ratio = (abs_on / abs_in)
-        f_diffuse = (color / math.pi) * (
-            self.w * ratio +
-            (1.0 - self.w)
-        )
+        f_diffuse = color / math.pi
         
         bs = mi.BSDFSample3f()
         wo = mi.warp.square_to_cosine_hemisphere(sample2)
@@ -373,7 +362,7 @@ class SurfaceBased (mi.BSDF) :
         bs.sampled_type = mi.UInt32(+mi.BSDFFlags.DiffuseReflection)
         bs.sampled_component = 0
         
-        active &= (cos_theta_i > 0.0) & (cos_theta_o > 0) & (bs.pdf > 0.0) & dr.isfinite(ratio)
+        active &= (cos_theta_i > 0.0) & (cos_theta_o > 0) & (bs.pdf > 0.0)
         weight = f_diffuse * dr.abs(cos_theta_o) / bs.pdf
         weight = dr.select(active, weight, mi.Color3f(0.0,0.0,0.0))
 
@@ -394,18 +383,9 @@ class SurfaceBased (mi.BSDF) :
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
         cos_theta_o = mi.Frame3f.cos_theta(wo)
 
-        threshold_diffuse = 0.01
-        normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
-        diffuse_sign = 1.0
-        abs_on = abs_dot(diffuse_sign * si.wi, normal)
-        abs_in = dr.abs(diffuse_sign * cos_theta_i)
-        abs_in = dr.maximum(threshold_diffuse, abs_in)
+        f_diffuse = color / math.pi 
 
-        ratio = (abs_on / abs_in)
-        f_diffuse = (color / math.pi) * self.w * ratio * \
-            + (color / math.pi) * (1.0 - self.w)
-
-        active = active & (cos_theta_i > 0.0) & (cos_theta_o > 0.0) & dr.isfinite(ratio)
+        active = active & (cos_theta_i > 0.0) & (cos_theta_o > 0.0)
         value =  f_diffuse * cos_theta_o
         pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
         pdf = dr.select(active, pdf, 0.0)
