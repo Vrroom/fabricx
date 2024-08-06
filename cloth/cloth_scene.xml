@@ -6,9 +6,14 @@
 	<default name="resx" value="3840"/>
 	<default name="resy" value="2160"/> -->
 
-	<default name="spp" value="512"/>
+	<!-- <default name="spp" value="512"/>
 	<default name="resx" value="1920"/>
-	<default name="resy" value="1080"/>
+	<default name="resy" value="1080"/> -->
+
+	<default name="spp" value="512"/>
+	<default name="resx" value="384"/>
+	<default name="resy" value="216"/>
+
 
 <!-- Camera and Rendering Parameters -->
 
@@ -66,7 +71,7 @@
             <rotate y="1" angle="-180" />
             <matrix value="-0.224951 -0.000001 -0.974370 0.000000 -0.974370 0.000000 0.224951 0.000000 0.000000 1.000000 -0.000001 8.870000 0.000000 0.000000 0.000000 1.000000" />
         </transform> 
-        <float name="scale" value="3" />
+        <float name="scale" value="5" />
     </emitter>
    
 
