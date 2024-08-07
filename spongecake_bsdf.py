@@ -348,13 +348,15 @@ class SurfaceBased (mi.BSDF) :
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
         bs = mi.BSDFSample3f()
-        specular_or_diffuse = sample1 < self.specular_prob
+        reflect_or_transmit = sample1 < 0.5
 
         f_diffuse = color / math.pi        
         
         wo_diffuse = mi.warp.square_to_cosine_hemisphere(sample2)
+        pdf_diffuse = 0.5 * mi.warp.square_to_cosine_hemisphere_pdf(wo_diffuse)
+        wo_diffuse = dr.select(reflect_or_transmit, wo_diffuse, -wo_diffuse)
         cos_theta_o_diffuse = mi.Frame3f.cos_theta(wo_diffuse)
-        pdf_diffuse = mi.warp.square_to_cosine_hemisphere_pdf(wo_diffuse)
+        
 
         # specular sample
         alpha = dr.maximum(0.0001, self.alpha)
@@ -377,18 +379,29 @@ class SurfaceBased (mi.BSDF) :
         D = sggx_pdf(h, S)
         D = dr.select(dr.isnan(D), 0.0, D)
 
-        F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo_diffuse))) ** 5)
-        #cos_theta_o_spec = mi.Frame3f.cos_theta(wo_spec)
-
         #selected_r = (cos_theta_i * cos_theta_o_spec > 0.0)  # reflecting when the two have the same sign
         selected_r = (cos_theta_i * cos_theta_o_diffuse > 0.0)  # reflecting when the two have the same sign
 
         G_r = shadow_masking_term_reflect(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)
-        G_t = shadow_masking_term_transmit(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)
+        G_t = shadow_masking_term_transmit(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)        
 
-        # Mandy hacks now so transmission is 0 energy
-        # G = dr.select(selected_r, G_r, G_t)
-        G = dr.select(selected_r, G_r, 0)
+        # sigma_wi = sggx_projected_area(si.wi, s_mat)
+        # sigma_wo = sggx_projected_area(wo_diffuse, s_mat)
+
+        # cos_theta_o = dr.mulsign(cos_theta_o, cos_theta_i)
+        # cos_theta_i = dr.mulsign(cos_theta_i, cos_theta_i)
+
+        # gamma_wi = sigma_wi / cos_theta_i
+        # gamma_wo = sigma_wo / cos_theta_o
+
+        # indnan = dr.compress(dr.isnan(0.1))
+        #print("indnan", indnan)
+
+        #extra_term = dr.exp(optical_depth * gamma_wo)
+        #original_term = (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo + 1e-8))) / (gamma_wi + gamma_wo + 1e-8)
+
+        G = dr.select(selected_r, G_r, G_t)
+        G = dr.select(dr.isnan(G), 0.0, G)
 
         # VISIBILITY
         bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
@@ -400,7 +413,7 @@ class SurfaceBased (mi.BSDF) :
         V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
         V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
 
-        f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
+        f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
 
         #f_surface_based_micro = dr.select(specular_or_diffuse, f_sponge_cake, f_diffuse)
         f_surface_Based_micro = self.specular_prob * f_sponge_cake + \
@@ -409,8 +422,6 @@ class SurfaceBased (mi.BSDF) :
         ###################################################
         # Meso-scale BSDF
         f_surface_based_meso = f_surface_Based_micro * V_i * V_o
-        #cos_theta_o = dr.select(specular_or_diffuse, cos_theta_o_spec, cos_theta_o_diffuse)
-        cos_theta_o = cos_theta_o_diffuse
 
         #bs.wo = dr.select(specular_or_diffuse, wo_spec, wo_diffuse)
         #bs.pdf = dr.select(specular_or_diffuse, pdf_spec, pdf_diffuse)
@@ -419,15 +430,16 @@ class SurfaceBased (mi.BSDF) :
         #                                 mi.UInt32(+mi.BSDFFlags.DiffuseReflection))
         # bs.sampled_component = dr.select(specular_or_diffuse, mi.UInt32(0), mi.UInt32(1))
 
-        bs.sampled_type = mi.UInt32(+mi.BSDFFlags.DiffuseReflection)
-        bs.sampled_component = mi.UInt32(0)
+        bs.sampled_type = dr.select(reflect_or_transmit, mi.UInt32(+mi.BSDFFlags.DiffuseReflection),
+                                    mi.UInt32(+mi.BSDFFlags.DiffuseTransmission))
+        bs.sampled_component = dr.select(reflect_or_transmit, mi.UInt32(0), mi.UInt32(2))
        
         bs.wo = wo_diffuse
         bs.eta = 1.
         active = active & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0)
-        active = active & (cos_theta_i * cos_theta_o > 0) & (pdf_diffuse > 0.0)
+        active = active & dr.neq(cos_theta_i * cos_theta_o_diffuse, 0.0) & (pdf_diffuse > 0.0)
         
-        weight = f_surface_based_meso * dr.abs(cos_theta_o) / pdf_diffuse
+        weight = f_surface_based_meso * dr.abs(cos_theta_o_diffuse) / pdf_diffuse
         weight = dr.select(active, weight, mi.Color3f(0.0,0.0,0.0))      
         pdf = dr.select(active, pdf_diffuse, 0.0)
         bs.pdf = pdf
@@ -560,7 +572,8 @@ class SurfaceBased (mi.BSDF) :
 
         f_diffuse = color / math.pi 
 
-        pdf_diffuse = mi.warp.square_to_cosine_hemisphere_pdf(wo)        
+        wo_positive = dr.select(wo.z>0, wo, mi.Vector3f(wo.x, wo.y, -wo.z))
+        pdf_diffuse = 0.5 * mi.warp.square_to_cosine_hemisphere_pdf(wo_positive)        
 
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
@@ -584,14 +597,13 @@ class SurfaceBased (mi.BSDF) :
         D = sggx_pdf(h, S)
         D = dr.select(dr.isnan(D), 0.0, D)
 
-        F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo))) ** 5)
         selected_r = (cos_theta_i * cos_theta_o > 0.0)  # reflecting when the two have the same sign
         G_r = shadow_masking_term_reflect(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)
-        G_t = shadow_masking_term_transmit(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)
+        G_t = shadow_masking_term_transmit(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)       
 
         # Mandy hacks now so transmission is 0 energy
-        # G = dr.select(selected_r, G_r, G_t)
-        G = dr.select(selected_r, G_r, 0)
+        G = dr.select(selected_r, G_r, G_t)
+        G = dr.select(dr.isnan(G), 0.0, G)
 
         # VISIBILITY
         bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
@@ -605,13 +617,8 @@ class SurfaceBased (mi.BSDF) :
         V_i = dr.select(dr.isnan(V_i), 0.0, V_i)
         V_o = dr.select(dr.isnan(V_o), 0.0, V_o)
 
-        # v_threshold = 0.5        
-        #pdf_specular = D / (4. * sggx_projected_area(si.wi, S))
-        #pdf = self.specular_prob * pdf_specular + (1-self.specular_prob) * pdf_diffuse
-        
-        # hack
         pdf = pdf_diffuse        
-        f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
+        f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
 
         f_surface_based_micro = self.specular_prob * f_sponge_cake + \
                         (1 - self.specular_prob) * f_diffuse
@@ -619,12 +626,12 @@ class SurfaceBased (mi.BSDF) :
         ###################################################
         # Meso-scale BSDF
         f_surface_based_meso = f_surface_based_micro * V_i * V_o
-        value =  f_surface_based_meso * cos_theta_o
+        value =  f_surface_based_meso * dr.abs(cos_theta_o)
 
 
         active = active & dr.neq(D, 0.0) & dr.neq(dr.dot(wo, h), 0.0)
         # active =  active & (cos_theta_i != 0.0 ) & (D != 0.0) & (dr.dot(bs.wo, h) != 0.0)        
-        active = active & (cos_theta_i * cos_theta_o > 0) & (pdf_diffuse > 0.0)
+        active = active & dr.neq(cos_theta_i * cos_theta_o, 0.0) & (pdf_diffuse > 0.0)
         pdf = dr.select(active, pdf, 0.0)
         value = dr.select(active, value, mi.Color3f(0.0,0.0,0.0))
 
