@@ -379,26 +379,10 @@ class SurfaceBased (mi.BSDF) :
         D = sggx_pdf(h, S)
         D = dr.select(dr.isnan(D), 0.0, D)
 
-        #selected_r = (cos_theta_i * cos_theta_o_spec > 0.0)  # reflecting when the two have the same sign
         selected_r = (cos_theta_i * cos_theta_o_diffuse > 0.0)  # reflecting when the two have the same sign
 
         G_r = shadow_masking_term_reflect(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)
         G_t = shadow_masking_term_transmit(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)        
-
-        # sigma_wi = sggx_projected_area(si.wi, s_mat)
-        # sigma_wo = sggx_projected_area(wo_diffuse, s_mat)
-
-        # cos_theta_o = dr.mulsign(cos_theta_o, cos_theta_i)
-        # cos_theta_i = dr.mulsign(cos_theta_i, cos_theta_i)
-
-        # gamma_wi = sigma_wi / cos_theta_i
-        # gamma_wo = sigma_wo / cos_theta_o
-
-        # indnan = dr.compress(dr.isnan(0.1))
-        #print("indnan", indnan)
-
-        #extra_term = dr.exp(optical_depth * gamma_wo)
-        #original_term = (1.0 - dr.exp(-optical_depth * (gamma_wi + gamma_wo + 1e-8))) / (gamma_wi + gamma_wo + 1e-8)
 
         G = dr.select(selected_r, G_r, G_t)
         G = dr.select(dr.isnan(G), 0.0, G)
@@ -415,20 +399,12 @@ class SurfaceBased (mi.BSDF) :
 
         f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
 
-        #f_surface_based_micro = dr.select(specular_or_diffuse, f_sponge_cake, f_diffuse)
         f_surface_Based_micro = self.specular_prob * f_sponge_cake + \
                                 (1-self.specular_prob) * f_diffuse
 
         ###################################################
         # Meso-scale BSDF
         f_surface_based_meso = f_surface_Based_micro * V_i * V_o
-
-        #bs.wo = dr.select(specular_or_diffuse, wo_spec, wo_diffuse)
-        #bs.pdf = dr.select(specular_or_diffuse, pdf_spec, pdf_diffuse)
-        
-        # bs.sampled_type = dr.select(specular_or_diffuse, mi.UInt32(+mi.BSDFFlags.GlossyReflection), \
-        #                                 mi.UInt32(+mi.BSDFFlags.DiffuseReflection))
-        # bs.sampled_component = dr.select(specular_or_diffuse, mi.UInt32(0), mi.UInt32(1))
 
         bs.sampled_type = dr.select(reflect_or_transmit, mi.UInt32(+mi.BSDFFlags.DiffuseReflection),
                                     mi.UInt32(+mi.BSDFFlags.DiffuseTransmission))

@@ -6,21 +6,21 @@
 	<default name="resx" value="3840"/>
 	<default name="resy" value="2160"/> -->
 
-	<!-- <default name="spp" value="512"/>
+	<default name="spp" value="512"/>
 	<default name="resx" value="1920"/>
-	<default name="resy" value="1080"/> -->
-
+	<default name="resy" value="1080"/>
+<!-- 
 	<default name="spp" value="512"/>
 	<default name="resx" value="384"/>
-	<default name="resy" value="216"/>
+	<default name="resy" value="216"/> -->
 
 
 <!-- Camera and Rendering Parameters -->
 
-	<integrator type="path" id="elm__0" name="elm__0">
+	<!-- <integrator type="path" id="elm__0" name="elm__0">
 		<integer name="max_depth" value="5"/>
-	</integrator>
-	<!-- <integrator type="direct"/> -->
+	</integrator> -->
+	<integrator type="direct"/>
 	<sensor type="perspective" id="elm__2" name="elm__2">
 		<string name="fov_axis" value="x"/>
 		<float name="fov" value="39.597755"/>
