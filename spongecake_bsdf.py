@@ -344,7 +344,7 @@ class SurfaceBased (mi.BSDF) :
     def sample(self, ctx, si, sample1, sample2, active): 
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
-        color = mi.Color3f(self.texture.eval(tiled_uv))
+        color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
         bs = mi.BSDFSample3f()
@@ -357,7 +357,6 @@ class SurfaceBased (mi.BSDF) :
         wo_diffuse = dr.select(reflect_or_transmit, wo_diffuse, -wo_diffuse)
         cos_theta_o_diffuse = mi.Frame3f.cos_theta(wo_diffuse)
         
-
         # specular sample
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
@@ -371,6 +370,9 @@ class SurfaceBased (mi.BSDF) :
         tangent= tangent / dr.norm(tangent)
         tangent = tangent - dr.sum(tangent * normal) * normal
 
+        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
+        selected_dt = sample1 > delta_transmission.x
+
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
         S = rotate_s_mat(S, normal, tangent)
 
@@ -379,12 +381,10 @@ class SurfaceBased (mi.BSDF) :
         D = sggx_pdf(h, S)
         D = dr.select(dr.isnan(D), 0.0, D)
 
-        selected_r = (cos_theta_i * cos_theta_o_diffuse > 0.0)  # reflecting when the two have the same sign
-
         G_r = shadow_masking_term_reflect(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)
         G_t = shadow_masking_term_transmit(si.wi, wo_diffuse, cos_theta_i, cos_theta_o_diffuse, self.optical_depth, S)        
 
-        G = dr.select(selected_r, G_r, G_t)
+        G = dr.select(reflect_or_transmit, G_r, G_t)
         G = dr.select(dr.isnan(G), 0.0, G)
 
         # VISIBILITY
@@ -406,130 +406,31 @@ class SurfaceBased (mi.BSDF) :
         # Meso-scale BSDF
         f_surface_based_meso = f_surface_Based_micro * V_i * V_o
 
-        bs.sampled_type = dr.select(reflect_or_transmit, mi.UInt32(+mi.BSDFFlags.DiffuseReflection),
-                                    mi.UInt32(+mi.BSDFFlags.DiffuseTransmission))
-        bs.sampled_component = dr.select(reflect_or_transmit, mi.UInt32(0), mi.UInt32(2))
+
+        ####### final values
+        wo = dr.select(selected_dt, -si.wi, wo_diffuse)
+        pdf = dr.select(selected_dt, delta_transmission.x, (1-delta_transmission.x) * pdf_diffuse)
+
+        bs.sampled_component = dr.select(selected_dt, 
+            mi.UInt32(4), 
+             dr.select(reflect_or_transmit, mi.UInt32(0), mi.UInt32(2)))
+        bs.sampled_type = dr.select(selected_dt, 
+            mi.UInt32(+mi.BSDFFlags.DeltaTransmission),
+            dr.select(reflect_or_transmit, mi.UInt32(+mi.BSDFFlags.DiffuseReflection),
+                                    mi.UInt32(+mi.BSDFFlags.DiffuseTransmission)))
        
-        bs.wo = wo_diffuse
+        bs.wo = wo
         bs.eta = 1.
         active = active & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0)
-        active = active & dr.neq(cos_theta_i * cos_theta_o_diffuse, 0.0) & (pdf_diffuse > 0.0)
+        active = active & dr.neq(cos_theta_i * cos_theta_o_diffuse, 0.0) & (pdf > 0.0)
         
-        weight = f_surface_based_meso * dr.abs(cos_theta_o_diffuse) / pdf_diffuse
+        weight = dr.select(selected_dt, 1.0/pdf, f_surface_based_meso * dr.abs(cos_theta_o_diffuse) / pdf)
         weight = dr.select(active, weight, mi.Color3f(0.0,0.0,0.0))      
-        pdf = dr.select(active, pdf_diffuse, 0.0)
+        pdf = dr.select(active, pdf, 0.0)
         bs.pdf = pdf
 
         return (bs, weight)
-
-    # def sample(self, ctx, si, sample1, sample2, active): 
-    #     tiles = self.tiles
-    #     tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
-        
-    #     cos_theta_i = mi.Frame3f.cos_theta(si.wi)        
-        
-    #     bs = mi.BSDFSample3f()
-
-    #     specular_or_diffuse = sample1 < self.specular_prob
-
-    #     dr.printf_async("sample1 = %f\n", sample1, active=active)
-
-    #     # reflection
-    #     # diffuse sample
-    #     wo_diffuse = mi.warp.square_to_cosine_hemisphere(sample2)
-    #     cos_theta_o_diffuse = mi.Frame3f.cos_theta(wo_diffuse)
-    #     pdf_diffuse = mi.warp.square_to_cosine_hemisphere_pdf(wo_diffuse)
-
-    #     # # generate another sample and decide whether sample according to yarn normal or surface normal
-    #     # sample3 = mi.Point2f(self.pcg.next_float32(), self.pcg.next_float32())
-    #     # sample_yarn_normal = sample3.x < self.w
-    #     # sh_frame = mi.Frame3f(normal) 
-    #     # wo = dr.select(sample_yarn_normal, sh_frame.to_local(wo), wo)
-    #     #bs.wo = wo
-
-    #     # offset uv coordinate, to handle parallax (need to finish this)
-    #     #tiled_uv_diffuse = tiled_uv + 0.001 / wo_diffuse.z * mi.Point2f(wo_diffuse.x, wo_diffuse.y)
-    #     color = mi.Color3f(self.texture.eval(tiled_uv))
-    #     f_diffuse = color / math.pi
-
-
-    #     # specular sample
-    #     alpha = dr.maximum(0.0001, self.alpha)
-    #     S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
-    #     S_fibr = dr.diag(mi.Vector3f(1., alpha * alpha, 1.))
-    #     # S_surf = dr.diag(dr.llvm.ad.Array3f(alpha * alpha, alpha * alpha, 1.)) # surface type matrix. Later we'll rotate it and all that.
-    #     # S_fibr = dr.diag(dr.llvm.ad.Array3f(1., alpha * alpha, 1.)) # fiber type matrix. Later we'll rotate it and all that.
-
-    #     normal = mi.Vector3f(self.normal_map.eval(tiled_uv))
-    #     tangent = mi.Vector3f(self.tangent_map.eval(tiled_uv))        
-    #     normal = normal / dr.norm(normal)
-    #     tangent= tangent / dr.norm(tangent)
-    #     tangent = tangent - dr.sum(tangent * normal) * normal
-
-    #     S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
-    #     S = rotate_s_mat(S, normal, tangent)
-
-    #     h, D, wo_spec, pdf_spec = sample_specular(sample2, si.wi, S)
-    #     #h_dt, D_dt, wo_dt, pdf_dt = mi.Vector3f(0,0,1), 1.0, -si.wi, 1.0
-
-    #     # # delta transmission
-    #     # h = dr.select(selected_dt, h_dt, h)
-    #     # D = dr.select(selected_dt, D_dt, D)
-    #     # wo = dr.select(selected_dt, wo_dt, wo)
-    #     # pdf = dr.select(selected_dt, pdf_dt, pdf)
-    #     F = color + (1.0 - color) * ((1 - dr.abs(dr.dot(h, wo_spec))) ** 5)
-
-    #     cos_theta_i = mi.Frame3f.cos_theta(si.wi) 
-    #     cos_theta_o_spec = mi.Frame3f.cos_theta(wo_spec)
-
-    #     selected_r = (cos_theta_i * cos_theta_o_spec > 0.0)  # reflecting when the two have the same sign
-
-    #     G_r = shadow_masking_term_reflect(si.wi, wo_spec, cos_theta_i, cos_theta_o_spec, self.optical_depth, S)
-    #     G_t = shadow_masking_term_transmit(si.wi, wo_spec, cos_theta_i, cos_theta_o_spec, self.optical_depth, S)
-
-    #     # Mandy hacks now so transmission is 0 energy
-    #     # G = dr.select(selected_r, G_r, G_t)
-    #     G = dr.select(selected_r, G_r, 0)
-
-    #     # VISIBILITY
-    #     bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
-    #     asg_params = mi.Vector3f(self.asg_params.eval(tiled_uv))
-    #     di = euclidean_to_spherical_dr(si.wi) 
-    #     do = euclidean_to_spherical_dr(wo_spec) 
-    #     bent_normal = bent_normal / dr.norm(bent_normal)
-    #     mu = euclidean_to_spherical_dr(bent_normal)
-    #     V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
-    #     V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
-
-    #     # v_threshold = 0.5
-    #     active = active & dr.neq(cos_theta_i, 0.0) & dr.neq(D, 0.0) & dr.neq(dr.dot(bs.wo, h), 0.0)
-    #     # active =  active & (cos_theta_i != 0.0 ) & (D != 0.0) & (dr.dot(bs.wo, h) != 0.0)
-
-    #     f_sponge_cake = (F * D * G) / (4. * dr.abs(cos_theta_i))
-
-    #     f_surface_based_micro = dr.select(specular_or_diffuse, f_sponge_cake, f_diffuse)
-
-    #     ###################################################
-    #     # Meso-scale BSDF
-    #     f_surface_based_meso = f_surface_based_micro * V_i * V_o
-
-    #     cos_theta_o = dr.select(specular_or_diffuse, cos_theta_o_spec, cos_theta_o_diffuse)
-        
-    #     bs.wo = dr.select(specular_or_diffuse, wo_spec, wo_diffuse)
-    #     bs.pdf = dr.select(specular_or_diffuse, pdf_spec, pdf_diffuse)
-    #     bs.eta = 1.
-    #     weight = f_surface_based_meso * dr.abs(cos_theta_o) / bs.pdf 
-
-    #     active &= (cos_theta_i > 0.0) & (cos_theta_o > 0) & (bs.pdf > 0.0) & (dr.all(dr.isfinite(weight)))
-    #     weight = dr.select(active, weight, mi.Color3f(0.0, 0.0, 0.0))
-
-        
-    #     bs.sampled_type = dr.select(specular_or_diffuse, mi.UInt32(+mi.BSDFFlags.GlossyReflection), \
-    #                                     mi.UInt32(+mi.BSDFFlags.DiffuseReflection))
-    #     bs.sampled_component = dr.select(specular_or_diffuse, mi.UInt32(0), mi.UInt32(1))
-       
-
-    #     return (bs, weight)
+    
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -566,6 +467,8 @@ class SurfaceBased (mi.BSDF) :
 
         tangent = tangent - dr.sum(tangent * normal) * normal
 
+        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
+
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
         S = rotate_s_mat(S, normal, tangent)
 
@@ -576,6 +479,7 @@ class SurfaceBased (mi.BSDF) :
         selected_r = (cos_theta_i * cos_theta_o > 0.0)  # reflecting when the two have the same sign
         G_r = shadow_masking_term_reflect(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)
         G_t = shadow_masking_term_transmit(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)       
+
 
         # Mandy hacks now so transmission is 0 energy
         G = dr.select(selected_r, G_r, G_t)
@@ -593,7 +497,10 @@ class SurfaceBased (mi.BSDF) :
         V_i = dr.select(dr.isnan(V_i), 0.0, V_i)
         V_o = dr.select(dr.isnan(V_o), 0.0, V_o)
 
-        pdf = pdf_diffuse        
+        #delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
+        #print("delta_transmission", delta_transmission)
+        #pdf = pdf_diffuse * (1-delta_transmission)        
+        pdf = pdf_diffuse * (1-delta_transmission.x)
         f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
 
         f_surface_based_micro = self.specular_prob * f_sponge_cake + \
