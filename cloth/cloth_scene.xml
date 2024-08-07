@@ -17,10 +17,10 @@
 
 <!-- Camera and Rendering Parameters -->
 
-	<!-- <integrator type="path" id="elm__0" name="elm__0">
-		<integer name="max_depth" value="5"/>
-	</integrator> -->
-	<integrator type="direct"/>
+	<integrator type="path" id="elm__0" name="elm__0">
+		<integer name="max_depth" value="12"/>
+	</integrator>
+	<!-- <integrator type="direct"/> -->
 	<sensor type="perspective" id="elm__2" name="elm__2">
 		<string name="fov_axis" value="x"/>
 		<float name="fov" value="39.597755"/>
