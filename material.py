@@ -52,7 +52,7 @@ if __name__ == "__main__" :
     parser.add_argument('--perturb_specular', action='store_true', help='Whether to randomly perturb specular weight')
     parser.add_argument('--delta_transmission', action='store_true', help='Whether to use delta transmission')
     # output path
-    parser.add_argument('--save_to', type=str, default='img.exr', help='Where to save the result to')
+    parser.add_argument('--save_to', type=str, default='img_new.exr', help='Where to save the result to')
 
     args = parser.parse_args()
     
