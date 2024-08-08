@@ -326,7 +326,7 @@ class SurfaceBased2023 (mi.BSDF) :
         return 0.0, 0.0
 
     def traverse(self, callback):
-        callback.put_parameter('base_color', self.base_color, mi.ParamFlags.Differentiable)
+        callback.put_object('base_color', self.base_color, mi.ParamFlags.Differentiable)
         callback.put_parameter('alpha', self.alpha, mi.ParamFlags.Differentiable)
         callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
         callback.put_parameter('tiles', self.tiles, mi.ParamFlags.Differentiable)
@@ -612,7 +612,7 @@ class SurfaceBased_sampleSGGX (mi.BSDF) :
 
 
     def traverse(self, callback):
-        callback.put_parameter('base_color', self.base_color, mi.ParamFlags.Differentiable)
+        callback.put_object('base_color', self.base_color, mi.ParamFlags.Differentiable)
         callback.put_parameter('alpha', self.alpha, mi.ParamFlags.Differentiable)
         callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
         callback.put_parameter('tiles', self.tiles, mi.ParamFlags.Differentiable)
@@ -906,7 +906,7 @@ class SurfaceBased_sampleDiffuse (mi.BSDF) :
 
 
     def traverse(self, callback):
-        callback.put_parameter('base_color', self.base_color, mi.ParamFlags.Differentiable)
+        callback.put_object('base_color', self.base_color, mi.ParamFlags.Differentiable)
         callback.put_parameter('alpha', self.alpha, mi.ParamFlags.Differentiable)
         callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
         callback.put_parameter('tiles', self.tiles, mi.ParamFlags.Differentiable)
@@ -928,7 +928,8 @@ class SurfaceBased_sampleBoth (mi.BSDF) :
 
     def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
-        self.base_color = props['base_color'] 
+
+        self.base_color = props['base_color']  # assume there is always a base color
         self.optical_depth = mi.Float(props['optical_depth']) # the product T\rho
         self.alpha = mi.Float(props['alpha'])
         self.tiles = mi.Float(props['tiles'])
