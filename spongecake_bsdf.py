@@ -82,8 +82,8 @@ class SurfaceBased (mi.BSDF) :
         self.surface_or_fiber = mi.Bool(props['surface_or_fiber'])
         self.w = mi.Float(props['w'])
 
-        reflection_flags = mi.BSDFFlags.GlossyReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
-        transmission_flags = mi.BSDFFlags.GlossyTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        reflection_flags = mi.BSDFFlags.DiffuseReflection | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
+        transmission_flags = mi.BSDFFlags.DiffuseTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         delta_transmission_flags = mi.BSDFFlags.DeltaTransmission | mi.BSDFFlags.FrontSide | mi.BSDFFlags.BackSide
         self.m_components = [reflection_flags, transmission_flags, delta_transmission_flags]
         self.m_flags = reflection_flags | transmission_flags | delta_transmission_flags
@@ -196,7 +196,6 @@ class SurfaceBased (mi.BSDF) :
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
         S = rotate_s_mat(S, normal, tangent)
 
-        #h, D, wo_spec, pdf_spec = sample_specular(sample2, si.wi, S)
         h = dr.normalize(si.wi + wo_diffuse)
         D = sggx_pdf(h, S)
         D = dr.select(dr.isnan(D), 0.0, D)
@@ -231,8 +230,7 @@ class SurfaceBased (mi.BSDF) :
 
         ####### final values
         wo = dr.select(selected_dt, -si.wi, wo_diffuse)
-        #pdf = dr.select(selected_dt, 1.0, pdf_diffuse)
-        pdf = dr.select(selected_dt, 1.0, (1-delta_val) * pdf_diffuse)        
+        pdf = dr.select(selected_dt, 1.0, delta_val * pdf_diffuse)        
 
         bs.sampled_component = dr.select(selected_dt, 
             mi.UInt32(2), 
@@ -264,6 +262,9 @@ class SurfaceBased (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         color = mi.Color3f(self.texture.eval(tiled_uv))
+        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
+        delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
+        delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
         cos_theta_o = mi.Frame3f.cos_theta(wo)
@@ -286,9 +287,7 @@ class SurfaceBased (mi.BSDF) :
         normal = normal / dr.norm(normal)
         tangent= tangent / dr.norm(tangent)
 
-        tangent = tangent - dr.sum(tangent * normal) * normal
-
-        delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
+        tangent = tangent - dr.sum(tangent * normal) * normal        
 
         S = dr.select(self.surface_or_fiber, S_surf, S_fibr)
         S = rotate_s_mat(S, normal, tangent)
@@ -301,8 +300,6 @@ class SurfaceBased (mi.BSDF) :
         G_r = shadow_masking_term_reflect(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)
         G_t = shadow_masking_term_transmit(si.wi, wo, cos_theta_i, cos_theta_o, self.optical_depth, S)       
 
-
-        # Mandy hacks now so transmission is 0 energy
         G = dr.select(selected_r, G_r, G_t)
         G = dr.select(dr.isnan(G), 0.0, G)
 
@@ -318,8 +315,7 @@ class SurfaceBased (mi.BSDF) :
         V_i = dr.select(dr.isnan(V_i), 0.0, V_i)
         V_o = dr.select(dr.isnan(V_o), 0.0, V_o)
 
-        #delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
-        pdf = pdf_diffuse * (1-delta_transmission.x)
+        pdf = pdf_diffuse * delta_val
         f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
 
         f_surface_based_micro = self.specular_prob * f_sponge_cake + \
@@ -327,20 +323,15 @@ class SurfaceBased (mi.BSDF) :
 
         ###################################################
         # Meso-scale BSDF
+        v_threshold = 0.15
+        V_i = dr.select(V_i <= v_threshold, 0.0, 1.0)
+        V_o = dr.select(V_o <= v_threshold, 0.0, 1.0)
         f_surface_based_meso = f_surface_based_micro * V_i * V_o
         value =  f_surface_based_meso * dr.abs(cos_theta_o)
-
-
-        active = active & dr.neq(D, 0.0) & dr.neq(dr.dot(wo, h), 0.0)
-        # active =  active & (cos_theta_i != 0.0 ) & (D != 0.0) & (dr.dot(bs.wo, h) != 0.0)        
+       
         active = active & dr.neq(cos_theta_i * cos_theta_o, 0.0) & (pdf_diffuse > 0.0)
         pdf = dr.select(active, pdf, 0.0)
         value = dr.select(active, value, mi.Color3f(0.0,0.0,0.0))
-
-
-        # hack diffuse only
-        # value = f_diffuse * cos_theta_o
-        # pdf = pdf_diffuse
 
         return value, pdf
 
