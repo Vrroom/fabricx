@@ -9,8 +9,8 @@
 	<!-- <default name="spp" value="512"/>
 	<default name="resx" value="1920"/>
 	<default name="resy" value="1080"/> -->
-<!-- 
-	<default name="spp" value="512"/>
+
+	<!-- <default name="spp" value="512"/>
 	<default name="resx" value="384"/>
 	<default name="resy" value="216"/> -->
 
@@ -18,7 +18,7 @@
 <!-- Camera and Rendering Parameters -->
 
 	<integrator type="path" id="elm__0" name="elm__0">
-		<integer name="max_depth" value="4"/>
+		<integer name="max_depth" value="8"/>
 	</integrator>
 	<!-- <integrator type="direct"/> -->
 	<sensor type="perspective" id="elm__2" name="elm__2">
@@ -45,7 +45,8 @@
 
 <!-- Materials -->
 
-    <bsdf type="spongecake_bsdf" id="bsdf-matpreview">
+    <!-- <bsdf type="spongecake_bsdf" id="bsdf-matpreview"> -->
+	<bsdf type="spongecake_bsdf" id="bsdf-matpreview">
       <vector name="base_color" value="0.69411765, 0.61176471, 0.85098039"/>
       <float name="alpha" value="0.0010"/>
       <float name="optical_depth" value="2.0"/>
@@ -60,19 +61,19 @@
 	</bsdf> -->
 
 <!-- Emitters -->
-    <emitter type="constant">
+    <!-- <emitter type="constant">
         <rgb name="radiance" value="1.0"/>
-    </emitter>
+    </emitter> -->
 
     
-    <!-- <emitter type="envmap" id="emitter-envmap">
+    <emitter type="envmap" id="emitter-envmap">
         <string name="filename" value="envmap.exr" />
         <transform name="to_world">
             <rotate y="1" angle="-180" />
             <matrix value="-0.224951 -0.000001 -0.974370 0.000000 -0.974370 0.000000 0.224951 0.000000 0.000000 1.000000 -0.000001 8.870000 0.000000 0.000000 0.000000 1.000000" />
         </transform> 
         <float name="scale" value="5" />
-    </emitter> -->
+    </emitter>
    
 
 <!-- Shapes -->
