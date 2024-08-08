@@ -5,8 +5,8 @@
 	<default name="spp" value="2048"/>
 	<default name="resx" value="3840"/>
 	<default name="resy" value="2160"/>
-
-	<!-- <default name="spp" value="512"/>
+<!-- 
+	<default name="spp" value="512"/>
 	<default name="resx" value="1920"/>
 	<default name="resy" value="1080"/> -->
 

@@ -424,7 +424,7 @@ class SurfaceBased_sampleSGGX (mi.BSDF) :
         self.normal_mipmap.append(self.normal_map)
 
     
-    def sample(self, ctx, si, sample1, sample2, active): 
+    def sample(self, ctx, si, sample1, sample2, active):
         bs = mi.BSDFSample3f() 
 
         tiles = self.tiles
@@ -509,7 +509,7 @@ class SurfaceBased_sampleSGGX (mi.BSDF) :
         active = active & (dr.all(dr.isfinite(weight)))
         weight = dr.select(active, weight, mi.Color3f(0.0,0.0,0.0)) 
 
-        return (bs, weight)
+        return (bs, weight)         
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -700,22 +700,36 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
             cur_dim *= 2
         self.normal_mipmap.append(self.normal_map)
 
-    
+
     def sample(self, ctx, si, sample1, sample2, active): 
-        bs = mi.BSDFSample3f() 
+        bs = mi.BSDFSample3f()
 
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
-        #color = mi.Color3f(self.texture.eval(tiled_uv)) # texture usually uses original uv (si.uv) unless using id map
+        #color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
         color = mi.Color3f(self.base_color)
+        cos_theta_i = mi.Frame3f.cos_theta(si.wi)
+
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
         selected_dt = sample1 > delta_val
         
+        selected_spec = sample2.x < self.specular_prob #(TODO) probably good to decorrelate this with delta transmission
+        sample1_new = sample1 / delta_val
+        selected_r = sample1_new < 0.5
+
         ########################## diffuse component #################
-        f_diffuse = color / math.pi
+
+        f_diffuse = color / math.pi        
         
+        wo_diffuse = mi.warp.square_to_cosine_hemisphere(sample2)
+        pdf_diffuse = 0.5 * mi.warp.square_to_cosine_hemisphere_pdf(wo_diffuse)
+        wo_diffuse = dr.select(selected_r, wo_diffuse, -wo_diffuse)
+        cos_theta_o_diffuse = mi.Frame3f.cos_theta(wo_diffuse)
+        h_diffuse = dr.normalize(si.wi + wo_diffuse)
+        
+
         ########################## specular component ################
         alpha = dr.maximum(0.0001, self.alpha)
         S_surf = dr.diag(mi.Vector3f(alpha * alpha, alpha * alpha, 1.)) 
@@ -731,7 +745,15 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
 
         h, D, wo, pdf = sample_specular(sample2, si.wi, S)
 
-        ########################## delta transmission ################    
+        ########################## diffuse or specular #################
+        wo = dr.select(selected_spec, wo, wo_diffuse)
+        pdf = dr.select(selected_spec, pdf, pdf_diffuse)
+        h = dr.select(selected_spec, h, h_diffuse)
+        D_diffuse = sggx_pdf(h_diffuse, S)
+        D_diffuse = dr.select(dr.isnan(D_diffuse), 0.0, D_diffuse)
+        D = dr.select(selected_spec, D, D_diffuse)        
+
+        ########################## delta transmission ##################    
         pdf = dr.select(selected_dt, 1.0, pdf * delta_val)
         wo = dr.select(selected_dt, -si.wi, wo)
                     
@@ -755,7 +777,12 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
             mi.UInt32(+mi.BSDFFlags.DeltaTransmission),
             dr.select(selected_r, mi.UInt32(+mi.BSDFFlags.DiffuseReflection),
                                     mi.UInt32(+mi.BSDFFlags.DiffuseTransmission)))
-        bs.pdf = pdf 
+        bs.pdf = pdf
+
+        f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
+
+        f_surface_based_micro = self.specular_prob * f_sponge_cake + \
+                                (1-self.specular_prob) * f_diffuse
 
         ##################################### VISIBILITY #############################       
         bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
@@ -766,11 +793,6 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
         mu = euclidean_to_spherical_dr(bent_normal)
         V_i = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, di)
         V_o = asg_dr(mu, asg_params.x, asg_params.y, asg_params.z, 1.0, do)
-
-        f_sponge_cake = (color * D * G) / (4. * dr.abs(cos_theta_i))
-
-        f_surface_based_micro = self.specular_prob * f_sponge_cake + \
-                                (1-self.specular_prob) * f_diffuse
 
         ###############################################################################
         ## Meso-scale BSDF
@@ -787,6 +809,7 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
         weight = dr.select(active, weight, mi.Color3f(0.0,0.0,0.0)) 
 
         return (bs, weight)
+    
 
     def eval(self, ctx, si, wo, active):
         return 0.0
@@ -1026,7 +1049,7 @@ class SurfaceBased (mi.BSDF) :
 
         G = dr.select(reflect_or_transmit, G_r, G_t)        
         G = dr.select(dr.isfinite(G), G, 0)
-        G = dr.select(G>10, 10, G)
+        G = dr.select(G>20, 20, G) # clamp G to avoid poor sampling of diffuse component
 
         # VISIBILITY
         bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
@@ -1125,7 +1148,7 @@ class SurfaceBased (mi.BSDF) :
 
         G = dr.select(selected_r, G_r, G_t)
         G = dr.select(dr.isfinite(G), G, 0.0)
-        G = dr.select(G>10, 10, G)
+        G = dr.select(G>20, 20, G) # clamp G to avoid poor sampling of diffuse component
 
         # VISIBILITY
         bent_normal = mi.Vector3f(self.bent_normal_map.eval(tiled_uv))
