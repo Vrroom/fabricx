@@ -428,7 +428,8 @@ class SurfaceBased (mi.BSDF) :
     def sample(self, ctx, si, sample1, sample2, active): 
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
-        color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
+        #color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
+        color = mi.Color3f(self.base_color)
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
@@ -527,7 +528,8 @@ class SurfaceBased (mi.BSDF) :
     def eval_pdf(self, ctx, si, wo, active):
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
-        color = mi.Color3f(self.texture.eval(tiled_uv))
+        #color = mi.Color3f(self.texture.eval(tiled_uv))
+        color = mi.Color3f(self.base_color)
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)

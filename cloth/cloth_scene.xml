@@ -18,7 +18,7 @@
 <!-- Camera and Rendering Parameters -->
 
 	<integrator type="path" id="elm__0" name="elm__0">
-		<integer name="max_depth" value="12"/>
+		<integer name="max_depth" value="4"/>
 	</integrator>
 	<!-- <integrator type="direct"/> -->
 	<sensor type="perspective" id="elm__2" name="elm__2">
@@ -46,7 +46,7 @@
 <!-- Materials -->
 
     <bsdf type="spongecake_bsdf" id="bsdf-matpreview">
-      <vector name="base_color" value="0.0, 1.0, 0.0"/>
+      <vector name="base_color" value="0.69411765, 0.61176471, 0.85098039"/>
       <float name="alpha" value="0.0010"/>
       <float name="optical_depth" value="2.0"/>
 	  <float name="tiles" value="256.0"/>
