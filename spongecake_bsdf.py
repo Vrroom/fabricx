@@ -913,7 +913,7 @@ class SurfaceBased_sampleSGGXandDiffuse (mi.BSDF) :
     
 
 
-class SurfaceBased (mi.BSDF) : 
+class SurfaceBased2024 (mi.BSDF) : 
 
     def __init__ (self, props, *args, feature_map_type=None, cloth_type=None, texture=None, perturb_specular=False, delta_transmission=False) : 
         super().__init__ (props)  
@@ -969,6 +969,8 @@ class SurfaceBased (mi.BSDF) :
             tm /= 255.0
         elif (tangent_map_path.endswith(".txt")):
             tm = read_txt_feature_map(tangent_map_path)
+        else:
+            raise NotImplementedError("Tangent map file must be .png or .txt")
 
         nm, tm = fix_normal_and_tangent_map(nm, tm)
 
@@ -981,6 +983,9 @@ class SurfaceBased (mi.BSDF) :
             texture_map = np.array(Image.open(texture_path)) / 255.0
         elif (texture_path.endswith(".txt")):
             texture_map = read_txt_feature_map(texture_path, 4 if self.delta_transmission else 3)
+        else:
+            raise NotImplementedError("Texture map file must be .png or .txt")
+
         self.texture = mi.Texture2f(mi.TensorXf(texture_map[..., :3]))
         delta_map = np.ones(tuple(texture_map.shape[:-1]) + (1,)) if not delta_transmission else texture_map[..., 3:]
         assert delta_map.shape[-1] == 1, "Texture has no or wrong delta transmission channel."
@@ -1195,4 +1200,4 @@ class SurfaceBased (mi.BSDF) :
         pass
 
     def to_string(self):
-        return ('SurfaceBased[]')
+        return ('SurfaceBased2024[]')

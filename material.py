@@ -38,7 +38,7 @@ if __name__ == "__main__" :
     parser.add_argument('--scene', type=str, default='cloth/cloth_scene.xml', help='Path to scene')
     parser.add_argument('--debug', action='store_true', help='Whether running in debug mode or not')
     # bsdf parameters
-    parser.add_argument('--bsdf-type', type=str, default='SurfaceBased', help='Class name of the bsdf')
+    parser.add_argument('--bsdf-type', type=str, default='SurfaceBased2024', help='Class name of the bsdf')
     parser.add_argument('--alpha', type=float, nargs='+', default=[0.0], help='List of floats for alpha')
     parser.add_argument('--optical_depth', type=float, nargs='+', default=[2.0], help='List of floats for optical depth')   # T * \rho = 2.0, as in Jin et al.'s paper, section 3.2
     parser.add_argument('--fiber', action='store_true', help='Whether to use the fiber mode or the surface mode')
