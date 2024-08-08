@@ -444,7 +444,7 @@ class SurfaceBased_sampleSGGX (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv)) # texture usually uses original uv (si.uv) unless using id map
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
@@ -535,7 +535,7 @@ class SurfaceBased_sampleSGGX (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv))
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
@@ -728,7 +728,7 @@ class SurfaceBased_sampleDiffuse (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
@@ -829,7 +829,7 @@ class SurfaceBased_sampleDiffuse (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv))
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
@@ -1024,7 +1024,7 @@ class SurfaceBased_sampleBoth (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv)) # four different color parameters? (rd, rs, td, ts)
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
 
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))    # TODO: think about the tiled_uv here
@@ -1138,7 +1138,7 @@ class SurfaceBased_sampleBoth (mi.BSDF) :
         tiles = self.tiles
         tiled_uv = dr.select(self.feature_map_type == "cloth", (si.uv * tiles) - dr.trunc(si.uv * tiles), si.uv)
         #color = mi.Color3f(self.texture.eval(tiled_uv))
-        color = mi.Color3f(self.base_color)
+        color = self.base_color.eval(si, active)
         delta_transmission = mi.Vector1f(self.delta_transmission_map.eval(tiled_uv))
         delta_val = dr.select(delta_transmission.x > 1.0, 1.0, delta_transmission.x)
         delta_val = dr.select(delta_val<0.0, 0.0, delta_val)
@@ -1215,7 +1215,7 @@ class SurfaceBased_sampleBoth (mi.BSDF) :
 
 
     def traverse(self, callback):
-        callback.put_parameter('base_color', self.base_color, mi.ParamFlags.Differentiable)
+        callback.put_object('base_color', self.base_color, mi.ParamFlags.Differentiable)
         callback.put_parameter('alpha', self.alpha, mi.ParamFlags.Differentiable)
         callback.put_parameter('optical_depth', self.optical_depth, mi.ParamFlags.Differentiable)
         callback.put_parameter('tiles', self.tiles, mi.ParamFlags.Differentiable)
